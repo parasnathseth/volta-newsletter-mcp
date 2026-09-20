@@ -1,7 +1,7 @@
 // Sends ONE Mailchimp test email of the current template/shell.html directly to
 // TO_EMAIL (no forwarding), with preview_text set, then deletes what it created.
 // Run from volta-newsletter-mcp/:
-//   TO_EMAIL=someone@example.com node --env-file=../.env scripts/send-test-direct.mjs
+//   TO_EMAIL=someone@example.com node --env-file=.dev.vars scripts/send-test-direct.mjs
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';

@@ -3,7 +3,7 @@
 //   A) template + mc:edit body region  (Mailchimp holds a copy of the shell)
 //   B) full HTML pushed as the content (no Mailchimp template)
 // Leaves them in place; delete them (and the "zz compare test" template) afterwards.
-// Run: node --env-file=../.env scripts/make-compare-drafts.mjs
+// Run: node --env-file=.dev.vars scripts/make-compare-drafts.mjs
 import { readFileSync } from 'node:fs';
 const key = process.env.MAILCHIMP_API_KEY;
 const dc = key.split('-').pop();

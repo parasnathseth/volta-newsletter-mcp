@@ -2,7 +2,7 @@
 // Exercises create_draft -> re-push -> consent withdrawal -> delete_draft -> already-gone,
 // using the real library code. Never sends anything. Uses its own throwaway template and
 // deletes everything it creates, so the real "Volta Newsletter Shell" template is untouched.
-// Run: npm run live:drafts      (needs ../.env with MAILCHIMP_API_KEY)
+// Run: npm run live:drafts      (needs MAILCHIMP_API_KEY in .dev.vars)
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -13,7 +13,7 @@ import { mailchimp } from '../src/lib/mailchimp.ts';
 const here = dirname(fileURLToPath(import.meta.url));
 const shell = readFileSync(join(here, '..', 'template', 'shell.html'), 'utf8');
 const key = process.env.MAILCHIMP_API_KEY;
-if (!key) { console.error('MAILCHIMP_API_KEY missing (run with --env-file=../.env)'); process.exit(1); }
+if (!key) { console.error('MAILCHIMP_API_KEY missing (put it in .dev.vars and run with --env-file=.dev.vars)'); process.exit(1); }
 
 class FakeKV {
   store = new Map();

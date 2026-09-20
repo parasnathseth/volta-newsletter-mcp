@@ -122,7 +122,11 @@ export async function updateTemplate(
   await mailchimp(env, 'PATCH', `/templates/${current.mailchimpTemplateId}`, { html: args.html });
 
   const now = new Date().toISOString();
-  const versionId = `${now}-${crypto.randomUUID().slice(0, 4)}`;
+  // Ids sort as timestamp + sequence number. The sequence keeps ordering exact even if
+  // two updates land in the same millisecond (a random suffix would order them randomly).
+  const existingVersions = await listVersions(env);
+  const nextSeq = Math.max(0, ...existingVersions.map((v) => Number(/-(\d{6})$/.exec(v.versionId)?.[1] ?? 0))) + 1;
+  const versionId = `${now}-${String(nextSeq).padStart(6, '0')}`;
   const note = args.note.trim().slice(0, 200) || 'template update';
   const info: VersionInfo = { versionId, createdAt: now, by: args.by, note, bytes: new TextEncoder().encode(current.html).length };
   await env.OAUTH_KV.put(`${VERSION_PREFIX}${versionId}`, JSON.stringify({ html: current.html }), {
@@ -134,8 +138,7 @@ export async function updateTemplate(
   await env.OAUTH_KV.put(CURRENT_KEY, JSON.stringify(state));
 
   // Keep only the newest MAX_VERSIONS: the index document decides, not a (possibly stale) KV listing.
-  const index = (await listVersions(env)).filter((v) => v.versionId !== versionId);
-  index.push(info);
+  const index = [...existingVersions, info];
   index.sort(newestFirst);
   await env.OAUTH_KV.put(VERSION_INDEX_KEY, JSON.stringify(index.slice(0, MAX_VERSIONS)));
   for (const v of index.slice(MAX_VERSIONS)) await env.OAUTH_KV.delete(`${VERSION_PREFIX}${v.versionId}`);

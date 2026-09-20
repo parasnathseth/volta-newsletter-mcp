@@ -164,6 +164,34 @@ test('REGRESSION: version history and pruning stay correct when KV listings are 
   assert.equal(r.changed, true);
 });
 
+test('REGRESSION: versions created in the same millisecond keep exact order and prune the right ones', async () => {
+  installMailchimp();
+  const RealDate = Date;
+  const fixed = new RealDate('2026-10-01T00:00:00.000Z').getTime();
+  // Freeze the clock so every update lands in the same millisecond.
+  globalThis.Date = class extends RealDate {
+    constructor(...args) {
+      if (args.length === 0) super(fixed);
+      else super(...args);
+    }
+    static now() {
+      return fixed;
+    }
+  };
+  try {
+    const env = { OAUTH_KV: new FakeKV(), MAILCHIMP_API_KEY: 'testkey-us1' };
+    for (let i = 1; i <= 13; i++) await updateTemplate(env, shell, { html: withText(`v${i}`), note: `change ${i}`, by: 'u' });
+    const versions = await listVersions(env);
+    assert.equal(versions.length, MAX_VERSIONS);
+    assert.deepEqual(versions.map((v) => v.note), Array.from({ length: MAX_VERSIONS }, (_, i) => `change ${13 - i}`), 'newest first, oldest three pruned');
+    const r = await restoreVersion(env, shell, { versionId: 'previous', by: 'u' });
+    assert.equal((await getTemplateState(env, shell)).html, withText('v12'), 'undo goes back exactly one step');
+    assert.ok(r.changed);
+  } finally {
+    globalThis.Date = RealDate;
+  }
+});
+
 test('version history saved before the index existed is found by a one-time scan, then indexed', async () => {
   installMailchimp();
   const kv = new FakeKV();

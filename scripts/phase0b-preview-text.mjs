@@ -1,7 +1,7 @@
 // Phase 0b: does settings.preview_text fill the *|MC_PREVIEW_TEXT|* tag, and
 // what happens when it is omitted? Also confirms Mailchimp leaves the
 // linear-gradient CSS intact in the compiled HTML. NO test email is sent.
-// Run from volta-newsletter-mcp/:  node --env-file=../.env scripts/phase0b-preview-text.mjs
+// Run from the project root:  node --env-file=.dev.vars scripts/phase0b-preview-text.mjs
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';

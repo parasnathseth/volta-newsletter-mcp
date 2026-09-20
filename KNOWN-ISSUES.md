@@ -5,7 +5,7 @@ Smaller items to fix or look into later. Add to this as we go; move to HANDOFF.m
 ## Email rendering
 - [ ] **Gradient renders as a solid purple bar.** In the direct Mailchimp test send, the top bar showed solid #6101FF in Outlook (expected: Outlook ignores CSS gradients). A Gmail test was sent directly to the developer's Gmail; result still to be recorded. Goal: keep the gradient and add solid fallbacks (`bgcolor`) on the top bar, pill button and accent strips. Fallback plan: stepped-color cells. Snippets in `scripts/gradient-snippets.html` (untested in real clients).
 - [ ] **Footer shows "N/A · 2630 Windsor St…".** The "N/A" comes from the Mailchimp audience's default company/sender name, not the template. Fix in Mailchimp audience settings.
-- [ ] Older `../mailchimp-template.html`: the pill button's outer cell has no fallback background color.
+- [ ] The earlier multi-region template (no longer in this repo): the pill button's outer cell has no fallback background color.
 
 ## Calendar / events
 - [ ] **"Next occurrence" matches on exact title only.** Recurring events in the feed are separate events, and titles vary per occurrence ("CEO Breakfast with Jon McGinley" vs "with Bethany Deshpande", "DEFCON Halifax October Meet-Up"), so exact matching misses most recurring series. Options: match on a normalized prefix, on category, or on a series key; or let Claude decide from the returned list.

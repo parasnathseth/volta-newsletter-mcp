@@ -1,6 +1,6 @@
 // Phase 0: verify the Mailchimp mechanics the MCP server will rely on, using
 // the single-region shell (template/shell.html). Throwaway script, no server.
-// Run from volta-newsletter-mcp/:  node --env-file=../.env scripts/phase0.mjs
+// Run from the project root:  node --env-file=.dev.vars scripts/phase0.mjs
 // Creates a test template + 2 draft campaigns, sends ONE test email to the
 // account owner only, then deletes everything it created (set KEEP=1 to keep).
 // Never prints the API key.
@@ -12,7 +12,7 @@ import { dirname, join } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const apiKey = process.env.MAILCHIMP_API_KEY;
 if (!apiKey) {
-  console.error('MAILCHIMP_API_KEY not set (run with --env-file=../.env).');
+  console.error('MAILCHIMP_API_KEY not set (run with --env-file=.dev.vars).');
   process.exit(1);
 }
 const dc = apiKey.split('-').pop();
