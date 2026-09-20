@@ -1,0 +1,23 @@
+# FOR LOCAL TESTING ONLY (`wrangler dev`). Copy to `.dev.vars` and fill in.
+# `.dev.vars` is gitignored and is NOT used by the deployed Worker; production
+# values live in Cloudflare secrets (`wrangler secret put <NAME>`).
+
+# Google OAuth client (Google Cloud Console > Clients)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# Random 32-byte hex string used to sign/encrypt approval cookies
+COOKIE_ENCRYPTION_KEY=
+
+# Mailchimp API key (format: xxxxxxxx-us20)
+MAILCHIMP_API_KEY=
+
+# Access rule: only Google Workspace accounts on this domain may sign in
+ALLOWED_EMAIL_DOMAIN=voltaeffect.com
+
+# DEV ONLY: extra individual emails allowed to sign in while testing (comma-separated).
+# Remove before handoff to Volta.
+EXTRA_ALLOWED_EMAILS=
+
+# send_test may only email these domains (comma-separated)
+TEST_EMAIL_ALLOWED_DOMAINS=voltaeffect.com

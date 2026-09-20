@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "volta-newsletter-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "kv_namespaces": [
+    { "binding": "OAUTH_KV", "id": "5623e845f19645bab4fca8fb3b584dee" }
+  ],
+  "vars": {
+    "ALLOWED_EMAIL_DOMAIN": "voltaeffect.com",
+    "TEST_EMAIL_ALLOWED_DOMAINS": "voltaeffect.com"
+  }
+}

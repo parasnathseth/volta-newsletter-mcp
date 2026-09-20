@@ -1,0 +1,75 @@
+<!--
+  Volta newsletter SHELL for the MCP server: header, footer and brand styles
+  are fixed here; everything between them is ONE editable region,
+  mc:edit="body". Claude composes the whole body (intro, founder story, CTA,
+  events, anything Bader asks to add/move/remove) and the server pushes it
+  into this region. This replaces the older multi-region template
+  (../mailchimp-template.html) so sections can be rearranged conversationally.
+
+  Footer requirements (from the earlier v2 work): *|UNSUB|* as a real anchor,
+  *|LIST:ADDRESSLINE|*, and *|REWARDS|* (required on Mailchimp's Free plan).
+-->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="supported-color-schemes" content="light dark" />
+    <title>Volta</title>
+    <!--[if mso]>
+    <style>table,td,div,h1,h2,p,a {font-family: Arial, sans-serif !important;}</style>
+    <![endif]-->
+    <style>
+      @media only screen and (max-width: 600px) {
+        .volta-container { width: 100% !important; }
+        .volta-px { padding-left: 20px !important; padding-right: 20px !important; }
+      }
+    </style>
+  </head>
+  <body bgcolor="#0A0A0A" style="margin:0;padding:0;background-color:#0A0A0A;">
+    <div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;font-size:1px;line-height:1px;color:#0A0A0A;">*|MC_PREVIEW_TEXT|*&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0A0A0A" style="background-color:#0A0A0A;">
+      <tr>
+        <td align="center" bgcolor="#0A0A0A" style="padding:32px 16px;background-color:#0A0A0A;">
+          <table role="presentation" class="volta-container" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#0A0A0A" style="width:600px;max-width:600px;background-color:#0A0A0A;">
+
+            <tr>
+              <td style="height:3px;line-height:3px;font-size:0;background-color:#6101FF;background-image:linear-gradient(90deg, #6101FF, #05D9E7 35%, #FF6D6D 70%, #FFBB0E);border-radius:12px 12px 0 0;">&nbsp;</td>
+            </tr>
+
+            <tr>
+              <td class="volta-px" bgcolor="#0A0A0A" style="padding:28px 40px 20px 40px;background-color:#0A0A0A;border-left:1px solid #232327;border-right:1px solid #232327;">
+                <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:700;letter-spacing:2px;color:#F5F5F7;text-transform:uppercase;">Volta</span>
+                <p style="margin:6px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;color:#A3A3AD;">Where builders get built.</p>
+              </td>
+            </tr>
+
+            <tr>
+              <td class="volta-px" bgcolor="#0A0A0A" style="padding:8px 40px 32px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#F5F5F7;background-color:#0A0A0A;border-left:1px solid #232327;border-right:1px solid #232327;">
+
+                <div mc:edit="body">
+                  <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#D9D9DE;">
+                    Placeholder body — replaced with the composed edition.
+                  </p>
+                </div>
+
+              </td>
+            </tr>
+
+            <tr>
+              <td class="volta-px" bgcolor="#0A0A0A" style="padding:20px 40px 28px 40px;border-top:1px solid #232327;border-left:1px solid #232327;border-right:1px solid #232327;border-bottom:1px solid #232327;background-color:#0A0A0A;border-radius:0 0 12px 12px;">
+                <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;color:#A3A3AD;">Volta &middot; Halifax, Nova Scotia</p>
+                <p style="margin:4px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;color:#A3A3AD;">You&rsquo;re receiving this because you&rsquo;re part of the Volta community.</p>
+                <p style="margin:10px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;color:#A3A3AD;"><a href="*|UNSUB|*" style="color:#A3A3AD;text-decoration:underline;">Unsubscribe</a> &middot; *|LIST:ADDRESSLINE|*</p>
+                <p style="margin:6px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;color:#A3A3AD;">*|REWARDS|*</p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

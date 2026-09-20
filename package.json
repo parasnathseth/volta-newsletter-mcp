@@ -1,0 +1,26 @@
+{
+  "name": "volta-newsletter-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Remote MCP server (Cloudflare Workers) that lets Claude manage the Volta newsletter via Mailchimp.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test scripts/test-events.mjs scripts/test-template.mjs scripts/test-edition.mjs scripts/test-campaign.mjs scripts/test-backlog.mjs",
+    "phase0": "node --env-file=../.env scripts/phase0.mjs",
+    "live:drafts": "node --env-file=../.env scripts/live-draft-lifecycle.mjs"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^0.10.3",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "agents": "^0.24.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260920.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.135.0"
+  }
+}
