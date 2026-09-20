@@ -7,15 +7,18 @@ export interface Env {
   // Secrets (wrangler secret put / .dev.vars)
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
-  COOKIE_ENCRYPTION_KEY: string;
   MAILCHIMP_API_KEY?: string;
   MAILCHIMP_LIST_ID?: string;
   MAILCHIMP_DRY_RUN?: string;
 
   // Plain vars (wrangler.jsonc) / dev overrides (.dev.vars)
   ALLOWED_EMAIL_DOMAIN?: string;
-  EXTRA_ALLOWED_EMAILS?: string; // DEV ONLY, remove at handoff
   TEST_EMAIL_ALLOWED_DOMAINS?: string;
+  ALLOWED_REDIRECT_URIS?: string; // extra OAuth redirect URIs beyond Claude's (see src/auth/redirects.ts)
+
+  // DEVELOPMENT ONLY. Must be unset in production. EXTRA_ALLOWED_EMAILS is ignored unless DEV_MODE is "true".
+  DEV_MODE?: string;
+  EXTRA_ALLOWED_EMAILS?: string;
 }
 
 // Identity attached to every authenticated MCP request (see completeAuthorization).

@@ -27,7 +27,9 @@ export class MailchimpError extends Error {
 export async function mailchimp<T = any>(env: MailchimpEnv, method: string, path: string, body?: unknown): Promise<T> {
   const key = env.MAILCHIMP_API_KEY;
   if (!key) throw new Error('MAILCHIMP_API_KEY is not configured on the server.');
-  const dc = key.split('-').pop();
+  const dc = key.split('-').pop() ?? '';
+  // The datacenter comes from the key's suffix and becomes part of the host name, so it must look like "us20".
+  if (!/^[a-z]{2,4}\d{1,3}$/.test(dc)) throw new Error('MAILCHIMP_API_KEY does not look like a Mailchimp key (expected a "-us20" style suffix).');
 
   const res = await fetch(`https://${dc}.api.mailchimp.com/3.0${path}`, {
     method,

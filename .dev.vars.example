@@ -6,8 +6,6 @@
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 
-# Random 32-byte hex string used to sign/encrypt approval cookies
-COOKIE_ENCRYPTION_KEY=
 
 # Mailchimp API key (format: xxxxxxxx-us20)
 MAILCHIMP_API_KEY=

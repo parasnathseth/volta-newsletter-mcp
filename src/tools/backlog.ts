@@ -3,10 +3,11 @@ import { z } from 'zod';
 import { addEntry, BacklogError, listEntries, removeEntry, updateEntry } from '../lib/backlog.ts';
 import { logEvent } from '../lib/log.ts';
 import { textResult } from '../lib/mcp.ts';
+import { checkRateLimit, RateLimitError } from '../lib/rateLimit.ts';
 import type { Env } from '../types.ts';
 
 const fail = (message: string) => ({ ...textResult(message), isError: true });
-const friendly = (prefix: string, err: unknown) => (err instanceof BacklogError ? err.message : `${prefix}: ${(err as Error).message}`);
+const friendly = (prefix: string, err: unknown) => (err instanceof BacklogError || err instanceof RateLimitError ? err.message : `${prefix}: ${(err as Error).message}`);
 
 const NOT_CONSENT = 'The backlog holds private working notes only. It does not record consent: consent is per story and is recorded on the edition when a story is written.';
 
@@ -96,6 +97,7 @@ export function registerBacklogTools(server: McpServer, env: Env, userEmail: () 
     },
     async ({ id }) => {
       try {
+        await checkRateLimit(env, 'backlog_remove', user());
         const removed = await removeEntry(env, id);
         logEvent('tool.backlog_remove', { user: user(), id });
         return textResult(JSON.stringify({ removed, note: 'Deleted. The removed entry is shown so it can be re-added if this was a mistake.' }));

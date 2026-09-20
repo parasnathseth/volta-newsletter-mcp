@@ -14,11 +14,11 @@ Smaller items to fix or look into later. Add to this as we go; move to HANDOFF.m
 - [ ] The parser assumes the feed keeps expanding recurring events and using UTC. If an RRULE appears, events are flagged `hasRecurrence` but not expanded.
 
 ## Template
-- [ ] **No drag-and-drop editing.** Templates created through the API from HTML are Mailchimp "classic"/code-your-own templates. The API cannot create templates for the newer drag-and-drop builder, so Bader cannot rearrange blocks visually in Mailchimp. What he can do (to be confirmed by opening the comparison drafts from `scripts/make-compare-drafts.mjs`): edit the text inside the `mc:edit="body"` region in Mailchimp's classic campaign editor. Layout and section changes are made by asking Claude (which rewrites the body HTML). This applies to any automation, not just ours.
+- [ ] **No drag-and-drop editing.** Templates created through the API from HTML are Mailchimp "classic"/code-your-own templates. The API cannot create templates for the newer drag-and-drop builder, so Bader cannot rearrange blocks visually in Mailchimp. What he can do (confirmed by opening real drafts in Mailchimp during development): edit the text inside the `mc:edit="body"` region in Mailchimp's classic campaign editor. Layout and section changes are made by asking Claude (which rewrites the body HTML). This applies to any automation, not just ours.
 - [x] **Decided: route A (Mailchimp template + body region).** KV holds the master shell and pushes it one way to a Mailchimp template; drafts send only the body. Tested both routes with real drafts: route A (template + sections) opened normally in Mailchimp's classic editor, while route B (full raw HTML pushed as content, opening in the `html-paste` wizard) loaded forever in the editor. Cause of the route B hang not determined (could be our HTML or Mailchimp's editor); not pursued.
 - [ ] **KV can drift from Mailchimp.** The shell HTML lives in KV (Mailchimp cannot return template HTML), so a template edited directly in the Mailchimp editor is invisible to the server and would be overwritten by the next `update_template`. Possible mitigation: compare the template's `date_edited` from Mailchimp with `updatedAt` in KV and warn.
 - [ ] `restore_template "previous"` relies on a pointer key in KV; KV is eventually consistent across regions, so an immediate restore right after an update from a different location could in theory read a stale pointer. Restoring by explicit version id is exact.
-- [ ] Template validation is a basic safety check (one `body` region, unsubscribe/address tags, no scripts or inline handlers); it does not fully sanitize HTML.
+- [ ] Template validation is a safety check (one `body` region, unsubscribe/address tags, the same HTML checks as bodies but allowing the head's `meta`/`style`); it does not fully sanitize HTML.
 
 ## Mailchimp behaviour worth remembering
 - Mailchimp's `GET /reports/{id}` returns 200 with zeros for drafts **and for deleted campaigns**, so it says nothing about whether a campaign exists or was sent. Always check `GET /campaigns/{id}` status first (`get_report` now does).
@@ -30,7 +30,7 @@ Smaller items to fix or look into later. Add to this as we go; move to HANDOFF.m
 - **"Latest edition" moves on every save.** Tools that default to the most recently saved edition can act on the wrong one after you record an outcome on an old edition. The Skill tells Claude to always pass `editionId`; `delete_draft` requires it. `create_draft`, `send_test`, `render_edition` and `get_report` still accept no id.
 - **Re-pushing replaces the Mailchimp draft.** Edits made directly in Mailchimp are lost on the next push. `create_draft` now refuses to re-push without `overwrite: true`, but the server cannot detect edits made in Mailchimp, only warn.
 - **Consent resets when a story's topic or founder changes** (safe direction: the editor has to re-confirm). A story sent without an `id` is always a new story with consent `none`; omitted stories are deleted. Sending the whole `featured` list with ids is required whenever it is changed.
-- **Body HTML checks are pattern-based**, checking tags and attributes (not prose). They stop accidents and obvious abuse but are not a full HTML sanitizer.
+- **Body HTML checks are a stricter blocklist plus a URL-scheme allowlist**: dangerous tags (script, iframe, form, meta, style in bodies, and others) are refused; every URL attribute is normalised (entities decoded, whitespace and control characters stripped) and must be https, http, mailto or tel. They stop accidents and obvious abuse but are not a full HTML sanitizer.
 - **`nextOccurrence` matches identical titles only**, and the Skill tells Claude to judge series itself.
 - Consent is still the editor's word; the server records it, it cannot verify it.
 - The Skill was checked against the code by an independent review and by the end-to-end harness (which extracts the Skill's HTML building blocks and runs them through the server's validation), but the Skill's effect on Claude's actual behaviour can only be judged in real conversations.
@@ -45,4 +45,15 @@ Smaller items to fix or look into later. Add to this as we go; move to HANDOFF.m
 - [ ] After every deploy that adds or changes tools, the Claude connector must be refreshed/reconnected to see them (Claude reads the tool list at connect time). Put in the handoff notes.
 - [ ] The consent page appears at every new sign-in (no "remember this app" step).
 - [ ] Google test-mode authorizations expire after 7 days until the project is moved to an Internal (Workspace) project.
-- [ ] `EXTRA_ALLOWED_EMAILS` is a dev-only Worker secret; remove at handoff (in HANDOFF.md).
+- [ ] The deployed Worker still has the development secrets `DEV_MODE` and `EXTRA_ALLOWED_EMAILS` (so the developer can sign in with a personal Gmail). `npm run handoff:check` flags them; remove both at handoff (in HANDOFF.md).
+
+## Security review (Phase 9)
+An independent review plus my own audit found and fixed: public client registration allowing a look-alike "Claude" client to phish a Volta employee (now only Claude's real redirect addresses are accepted, at registration and at every authorization); the development email bypass also widening test sends (now gated behind `DEV_MODE`); caller-supplied ids reaching KV keys and Mailchimp URLs (now validated); a bypassable HTML blocklist (now stricter, with a URL-scheme allowlist); no rate limits on the riskiest tools (now per-person hourly limits); 90-day sessions (now 30); an unused `COOKIE_ENCRYPTION_KEY` (removed). Verified clean: no secrets anywhere in git history, 0 known vulnerabilities in dependencies, logs contain no bodies, keys or tokens.
+
+Still open, by design or by cost:
+- [ ] **Sessions outlast a suspended Google account** (access is checked at sign-in, not on every call) for up to 30 days. Mitigation: `npm run revoke:sessions`.
+- [ ] **Consent is self-declared** and a manipulated Claude could claim it. Mitigated by rate limits and the editor reading drafts, not preventable.
+- [ ] **No per-user quotas beyond the hourly limits**, and rate limits are a soft brake (KV is eventually consistent, so a fast burst can slip a few calls past).
+- [ ] The consent page's state entry is not deleted on the failure branches; it expires by itself after 10 minutes and is bound to the browser cookie, so this is low risk.
+- [ ] No Google `nonce`/PKCE on the Google leg; state plus the `__Host-` cookie binding already prevents login CSRF, and the ID token comes straight from Google over TLS.
+- [ ] Tool calls are not re-authorized at tool level; authorization rests on the OAuth provider guarding `/mcp` and the sign-in access rule.

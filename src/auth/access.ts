@@ -1,4 +1,4 @@
-import type { Env } from '../types';
+import type { Env } from '../types.ts';
 
 export interface GoogleClaims {
   sub: string;
@@ -35,14 +35,16 @@ export function parseIdToken(idToken: string, expectedAudience: string): GoogleC
 //  1. email must be verified by Google, always.
 //  2. Workspace path: the `hd` claim must equal ALLOWED_EMAIL_DOMAIN AND the
 //     email must end with @<domain> (defence in depth; never the suffix alone).
-//  3. DEV ONLY: exact match against EXTRA_ALLOWED_EMAILS (remove at handoff).
-export function isAllowed(claims: GoogleClaims, env: Env): boolean {
+//  3. DEVELOPMENT ONLY: exact match against EXTRA_ALLOWED_EMAILS, and only when DEV_MODE is
+//     "true". In production DEV_MODE is unset, so this list is ignored even if it is still set.
+export function isAllowed(claims: GoogleClaims, env: Pick<Env, 'ALLOWED_EMAIL_DOMAIN' | 'EXTRA_ALLOWED_EMAILS' | 'DEV_MODE'>): boolean {
   if (!claims.email_verified) return false;
   const email = claims.email.toLowerCase();
   const domain = env.ALLOWED_EMAIL_DOMAIN?.trim().toLowerCase();
 
   if (domain && claims.hd?.toLowerCase() === domain && email.endsWith(`@${domain}`)) return true;
 
+  if (env.DEV_MODE !== 'true') return false;
   const extras = (env.EXTRA_ALLOWED_EMAILS ?? '')
     .split(',')
     .map((e) => e.trim().toLowerCase())

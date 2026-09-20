@@ -87,6 +87,9 @@ const POINTER_KEY = 'edition:pointer:latest';
 const MAX_BODY_CHARS = 200_000;
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+// Edition ids are 26 Crockford characters. Checking the shape keeps caller-supplied ids
+// from ever addressing other keys in the same KV namespace (for example "index" or "pointer:latest").
+const EDITION_ID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 
 /** Time-sortable id: 10 chars of millisecond timestamp + 16 random chars. */
 export function newEditionId(now = Date.now()): string {
@@ -181,7 +184,7 @@ export async function saveEdition(
   const now = new Date().toISOString();
   let existing: Edition | null = null;
   if (input.editionId) {
-    existing = (await env.OAUTH_KV.get(`${KEY_PREFIX}${input.editionId}`, 'json')) as Edition | null;
+    existing = EDITION_ID.test(input.editionId) ? ((await env.OAUTH_KV.get(`${KEY_PREFIX}${input.editionId}`, 'json')) as Edition | null) : null;
     if (!existing) throw new EditionError(`Edition "${input.editionId}" was not found. Omit editionId to start a new one.`);
   }
 
@@ -250,8 +253,8 @@ export async function getEdition(env: EditionEnv, id?: string): Promise<Edition>
     if (!key) key = (await listEditions(env))[0]?.id;
     if (!key) throw new EditionError('There are no editions yet. Use save_edition to start one.');
   }
-  const edition = (await env.OAUTH_KV.get(`${KEY_PREFIX}${key}`, 'json')) as Edition | null;
-  if (!edition) throw new EditionError(`Edition "${key}" was not found.`);
+  const edition = EDITION_ID.test(key) ? ((await env.OAUTH_KV.get(`${KEY_PREFIX}${key}`, 'json')) as Edition | null) : null;
+  if (!edition) throw new EditionError(`Edition "${key.slice(0, 40)}" was not found.`);
   return edition;
 }
 

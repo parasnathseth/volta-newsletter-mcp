@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import { logEvent } from '../lib/log.ts';
 import { textResult } from '../lib/mcp.ts';
+import { checkRateLimit, RateLimitError } from '../lib/rateLimit.ts';
 import { getTemplateState, listVersions, restoreVersion, updateTemplate, ValidationError, MAX_VERSIONS } from '../lib/template.ts';
 import type { Env } from '../types.ts';
 
@@ -51,6 +52,7 @@ export function registerTemplateTools(server: McpServer, env: Env, bundledShell:
     },
     async ({ html, note }) => {
       try {
+        await checkRateLimit(env, 'update_template', user());
         const r = await updateTemplate(env, bundledShell, { html, note, by: user() });
         logEvent('tool.update_template', { user: user(), changed: r.changed, versionId: r.versionId });
         return textResult(
@@ -60,7 +62,7 @@ export function registerTemplateTools(server: McpServer, env: Env, bundledShell:
         );
       } catch (err) {
         logEvent('tool.update_template.error', { user: user(), message: (err as Error).message });
-        return fail(err instanceof ValidationError ? err.message : `Could not update the template: ${(err as Error).message}`);
+        return fail(err instanceof ValidationError || err instanceof RateLimitError ? (err as Error).message : `Could not update the template: ${(err as Error).message}`);
       }
     },
   );
@@ -91,6 +93,7 @@ export function registerTemplateTools(server: McpServer, env: Env, bundledShell:
     },
     async ({ versionId }) => {
       try {
+        await checkRateLimit(env, 'restore_template', user());
         const r = await restoreVersion(env, bundledShell, { versionId, by: user() });
         logEvent('tool.restore_template', { user: user(), restoredFrom: r.restoredFrom, changed: r.changed });
         return textResult(
@@ -100,7 +103,7 @@ export function registerTemplateTools(server: McpServer, env: Env, bundledShell:
         );
       } catch (err) {
         logEvent('tool.restore_template.error', { user: user(), message: (err as Error).message });
-        return fail(err instanceof ValidationError ? err.message : `Could not restore: ${(err as Error).message}`);
+        return fail(err instanceof ValidationError || err instanceof RateLimitError ? (err as Error).message : `Could not restore: ${(err as Error).message}`);
       }
     },
   );

@@ -4,11 +4,12 @@ import { ConsentError, createDraft, deleteDraft, getReport, listPastCampaigns, s
 import { EditionError } from '../lib/edition.ts';
 import { logEvent } from '../lib/log.ts';
 import { textResult } from '../lib/mcp.ts';
+import { checkRateLimit, RateLimitError } from '../lib/rateLimit.ts';
 import type { Env } from '../types.ts';
 
 const fail = (message: string) => ({ ...textResult(message), isError: true });
 const friendly = (prefix: string, err: unknown) =>
-  err instanceof EditionError || err instanceof ConsentError ? (err as Error).message : `${prefix}: ${(err as Error).message}`;
+  err instanceof EditionError || err instanceof ConsentError || err instanceof RateLimitError ? (err as Error).message : `${prefix}: ${(err as Error).message}`;
 
 export function registerMailchimpTools(server: McpServer, env: Env, bundledShell: string, userEmail: () => string | undefined): void {
   const user = () => userEmail() ?? 'unknown';
@@ -25,6 +26,7 @@ export function registerMailchimpTools(server: McpServer, env: Env, bundledShell
     },
     async ({ editionId, overwrite }) => {
       try {
+        await checkRateLimit(env, 'create_draft', user());
         const r = await createDraft(env, bundledShell, { editionId, by: user(), overwrite });
         logEvent('tool.create_draft', { user: user(), editionId: r.editionId, campaignId: r.campaignId, reused: r.reusedExistingDraft, dryRun: r.dryRun });
         return textResult(JSON.stringify(r));
@@ -47,6 +49,7 @@ export function registerMailchimpTools(server: McpServer, env: Env, bundledShell
     },
     async ({ to, editionId }) => {
       try {
+        await checkRateLimit(env, 'send_test', user());
         const r = await sendTest(env, bundledShell, { editionId, to });
         logEvent('tool.send_test', { user: user(), editionId: r.editionId, recipients: r.sentTo.length, dryRun: r.dryRun });
         return textResult(JSON.stringify(r));
@@ -87,6 +90,7 @@ export function registerMailchimpTools(server: McpServer, env: Env, bundledShell
     },
     async ({ editionId }) => {
       try {
+        await checkRateLimit(env, 'delete_draft', user());
         const r = await deleteDraft(env, { editionId, by: user() });
         logEvent('tool.delete_draft', { user: user(), editionId: r.editionId, campaignId: r.campaignId, outcome: r.outcome, dryRun: r.dryRun });
         return textResult(JSON.stringify(r));

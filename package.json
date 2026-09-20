@@ -8,21 +8,24 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
-    "test": "node --test scripts/test-events.mjs scripts/test-template.mjs scripts/test-edition.mjs scripts/test-campaign.mjs scripts/test-backlog.mjs",
-    "phase0": "node --env-file=.dev.vars scripts/phase0.mjs",
+    "test": "node --test scripts/test-events.mjs scripts/test-template.mjs scripts/test-edition.mjs scripts/test-campaign.mjs scripts/test-backlog.mjs scripts/test-auth.mjs scripts/test-html-safety.mjs scripts/test-safety.mjs",
+    "smoke": "node --env-file=.dev.vars scripts/smoke-mailchimp.mjs",
     "live:drafts": "node --env-file=.dev.vars scripts/live-draft-lifecycle.mjs",
     "e2e": "node --env-file=.dev.vars scripts/e2e-workflows.mjs",
+    "handoff:check": "node scripts/handoff-check.mjs",
+    "revoke:sessions": "node scripts/revoke-sessions.mjs",
+    "backup": "node scripts/backup-kv.mjs",
     "skill:zip": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-skill-zip.ps1"
   },
   "dependencies": {
-    "@cloudflare/workers-oauth-provider": "^0.10.3",
-    "@modelcontextprotocol/server": "^2.0.0",
-    "agents": "^0.24.0",
-    "zod": "^4.6.5"
+    "@cloudflare/workers-oauth-provider": "0.10.3",
+    "@modelcontextprotocol/server": "2.0.0",
+    "agents": "0.24.0",
+    "zod": "4.6.5"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260920.1",
-    "typescript": "^7.0.2",
-    "wrangler": "^4.135.0"
+    "@cloudflare/workers-types": "5.20260920.1",
+    "typescript": "7.0.2",
+    "wrangler": "4.135.0"
   }
 }

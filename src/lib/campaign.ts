@@ -4,7 +4,8 @@ import { getTemplateState, type TemplateEnv } from './template.ts';
 
 export interface CampaignEnv extends MailchimpEnv, EditionEnv, TemplateEnv {
   TEST_EMAIL_ALLOWED_DOMAINS?: string;
-  EXTRA_ALLOWED_EMAILS?: string; // DEV ONLY
+  EXTRA_ALLOWED_EMAILS?: string; // DEVELOPMENT ONLY: honoured only when DEV_MODE is "true"
+  DEV_MODE?: string;
 }
 
 export class ConsentError extends Error {
@@ -145,10 +146,10 @@ export async function createDraft(env: CampaignEnv, bundledShell: string, args: 
 
 const EMAIL_RE = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
 
-/** Test emails may only go to allowed domains (default voltaeffect.com) plus, for development, exact addresses in EXTRA_ALLOWED_EMAILS. */
+/** Test emails may only go to allowed domains (default voltaeffect.com) plus, in DEV_MODE only, exact addresses in EXTRA_ALLOWED_EMAILS. */
 export function checkTestRecipients(env: CampaignEnv, to: string[]): { allowed: string[]; rejected: string[] } {
   const domains = (env.TEST_EMAIL_ALLOWED_DOMAINS ?? 'voltaeffect.com').split(',').map((d) => d.trim().toLowerCase()).filter(Boolean);
-  const extras = (env.EXTRA_ALLOWED_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+  const extras = env.DEV_MODE === 'true' ? (env.EXTRA_ALLOWED_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean) : [];
   const allowed = new Map<string, string>(); // lowercase -> as typed, so case variants collapse
   const rejected: string[] = [];
   for (const raw of to) {
@@ -224,6 +225,10 @@ export type NotSent = { sent: false; campaignId: string; status: string; message
 
 export async function getReport(env: CampaignEnv, args: { campaignId?: string; editionId?: string }): Promise<ReportOut | NotSent> {
   let campaignId = args.campaignId;
+  // Mailchimp campaign ids are short alphanumeric strings. Anything else (such as "../lists/x") must never reach a Mailchimp URL.
+  if (campaignId !== undefined && !/^[a-z0-9]{6,20}$/i.test(campaignId)) {
+    throw new EditionError('That does not look like a Mailchimp campaign id. list_past_campaigns shows valid ones, or pass an editionId instead.');
+  }
   if (!campaignId) {
     const edition = await getEdition(env, args.editionId);
     if (!edition.campaignId) throw new EditionError('This edition has no Mailchimp campaign yet, so there is no report.');

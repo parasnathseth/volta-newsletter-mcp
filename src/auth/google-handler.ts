@@ -1,7 +1,8 @@
 import type { AuthRequest } from '@cloudflare/workers-oauth-provider';
-import type { Env, UserProps } from '../types';
-import { isAllowed, parseIdToken } from './access';
-import { logEvent } from '../lib/log';
+import type { Env, UserProps } from '../types.ts';
+import { isAllowed, parseIdToken } from './access.ts';
+import { isRedirectAllowed } from './redirects.ts';
+import { logEvent } from '../lib/log.ts';
 
 // Default handler for everything the OAuth provider does not own itself:
 // the consent page (/authorize), the Google leg (/callback) and a landing page.
@@ -40,6 +41,14 @@ function getCookie(request: Request, name: string): string | null {
 const setCookie = (name: string, value: string, maxAge: number) =>
   `${name}=${value}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${maxAge}`;
 
+const safeHost = (uri: unknown): string => {
+  try {
+    return new URL(String(uri)).host;
+  } catch {
+    return 'unknown';
+  }
+};
+
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
@@ -74,6 +83,13 @@ async function handleAuthorizeGet(request: Request, env: Env): Promise<Response>
   const client = await env.OAUTH_PROVIDER.lookupClient(oauthReq.clientId);
   if (!client) return html(page('Unknown client', '<h1>Unknown client</h1><p>This app is not registered.</p>'), 400);
 
+  // Only Claude's real callback addresses may receive an authorization code. A look-alike
+  // client with its own address is refused here, before anyone is asked to sign in.
+  if (!isRedirectAllowed(oauthReq.redirectUri, env)) {
+    logEvent('auth.redirect_denied', { clientName: String(client.clientName ?? '').slice(0, 60), redirectHost: safeHost(oauthReq.redirectUri) });
+    return html(page('Not allowed', '<h1>Connection not allowed</h1><p>This application is not allowed to connect to the Volta newsletter tools.</p>'), 400);
+  }
+
   const stateToken = crypto.randomUUID();
   await env.OAUTH_KV.put(`oauth:state:${stateToken}`, JSON.stringify(oauthReq), { expirationTtl: STATE_TTL_SECONDS });
 
@@ -81,7 +97,7 @@ async function handleAuthorizeGet(request: Request, env: Env): Promise<Response>
   const body = page(
     'Authorize',
     `<h1>Volta Newsletter</h1>
-<p><strong>${esc(client.clientName ?? 'An application')}</strong> wants to use the Volta newsletter tools on your behalf. You will sign in with your Volta Google account next.</p>
+<p><strong>${esc(client.clientName ?? 'An application')}</strong> (returns to <strong>${esc(safeHost(oauthReq.redirectUri))}</strong>) wants to use the Volta newsletter tools on your behalf. You will sign in with your Volta Google account next.</p>
 <form method="post" action="/authorize">
 <input type="hidden" name="csrf" value="${csrf}"><input type="hidden" name="state" value="${stateToken}">
 <button type="submit">Continue with Google</button></form>`,
@@ -165,6 +181,12 @@ async function handleCallback(request: Request, env: Env): Promise<Response> {
       page('Access denied', '<h1>Access denied</h1><p>This tool is limited to Volta accounts. Sign in with your @voltaeffect.com Google account.</p>'),
       403,
     );
+  }
+
+  // Re-check at the last step too: the stored request is what the code will be sent to.
+  if (!isRedirectAllowed(oauthReq.redirectUri, env)) {
+    logEvent('auth.redirect_denied', { stage: 'callback', redirectHost: safeHost(oauthReq.redirectUri) });
+    return html(page('Not allowed', '<h1>Connection not allowed</h1><p>This application is not allowed to connect to the Volta newsletter tools.</p>'), 400);
   }
 
   const props: UserProps = { email: claims.email, name: claims.name ?? claims.email };

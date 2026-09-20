@@ -35,6 +35,9 @@ const CURRENT_KEY = 'template:current';
 const VERSION_PREFIX = 'template:version:';
 const LATEST_POINTER_KEY = 'template:latestVersion';
 const VERSION_INDEX_KEY = 'template:versionIndex';
+// Version ids look like 2026-09-20T06:35:32.579Z-000001 (older ones end in 4 hex characters).
+// Checking the shape keeps caller-supplied ids from addressing other keys.
+const VERSION_ID = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z-[0-9a-f]{4,6}$/;
 const MAX_HTML_CHARS = 300_000;
 
 export class ValidationError extends Error {
@@ -62,7 +65,7 @@ export function validateShell(html: string): string[] {
 
   if (!withoutComments.includes('*|UNSUB|*')) problems.push('The footer must include the unsubscribe merge tag *|UNSUB|*.');
   if (!withoutComments.includes('*|LIST:ADDRESSLINE|*')) problems.push('The footer must include the mailing address merge tag *|LIST:ADDRESSLINE|*.');
-  problems.push(...unsafeHtmlProblems(html));
+  problems.push(...unsafeHtmlProblems(html, 'template'));
   return problems;
 }
 
@@ -187,7 +190,7 @@ export async function restoreVersion(
     if (!pointer) throw new Error('There is no previous version to restore yet.');
     id = pointer;
   }
-  const saved = (await env.OAUTH_KV.get(`${VERSION_PREFIX}${id}`, 'json')) as { html: string } | null;
+  const saved = VERSION_ID.test(id) ? ((await env.OAUTH_KV.get(`${VERSION_PREFIX}${id}`, 'json')) as { html: string } | null) : null;
   if (!saved) throw new Error(`Version "${id}" was not found (only the newest ${MAX_VERSIONS} versions are kept).`);
   const result = await updateTemplate(env, bundledShell, { html: saved.html, note: `restored version ${id}`, by: args.by });
   return { restoredFrom: id, ...result };

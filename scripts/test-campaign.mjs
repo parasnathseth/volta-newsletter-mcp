@@ -189,7 +189,7 @@ test('dry-run validates but makes no changes in Mailchimp', async () => {
 });
 
 test('test recipients: allowed domain only, no lookalike domains, dev extras exact', () => {
-  const env = { TEST_EMAIL_ALLOWED_DOMAINS: 'voltaeffect.com', EXTRA_ALLOWED_EMAILS: 'dev@gmail.com' };
+  const env = { TEST_EMAIL_ALLOWED_DOMAINS: 'voltaeffect.com', EXTRA_ALLOWED_EMAILS: 'dev@gmail.com', DEV_MODE: 'true' };
   const r = checkTestRecipients(env, ['A@VoltaEffect.com', 'x@voltaeffect.com.evil.com', 'x@evilvoltaeffect.com', 'dev@gmail.com', 'other@gmail.com', 'not-an-email', 'a@voltaeffect.com']);
   assert.deepEqual(r.allowed.map((s) => s.toLowerCase()), ['a@voltaeffect.com', 'dev@gmail.com']);
   assert.deepEqual(r.rejected, ['x@voltaeffect.com.evil.com', 'x@evilvoltaeffect.com', 'other@gmail.com', 'not-an-email']);
@@ -237,9 +237,9 @@ test('send_test dry-run sends nothing', async () => {
 
 test('get_report maps stats and ranks links for a sent campaign', async () => {
   const { campaigns } = installMailchimp();
-  campaigns.set('C9', { id: 'C9', web_id: 9, status: 'sent' });
+  campaigns.set('camp9abc12', { id: 'camp9abc12', web_id: 9, status: 'sent' });
   const env = await makeEnv();
-  const r = await getReport(env, { campaignId: 'C9' });
+  const r = await getReport(env, { campaignId: 'camp9abc12' });
   assert.equal(r.sent, true);
   assert.equal(r.emailsSent, 40);
   assert.deepEqual(r.opens, { unique: 20, total: 30, rate: 0.5 });
@@ -250,13 +250,13 @@ test('get_report maps stats and ranks links for a sent campaign', async () => {
 
 test('get_report says sent:false for drafts and deleted campaigns instead of returning zeros', async () => {
   const { campaigns, calls } = installMailchimp();
-  campaigns.set('D1', { id: 'D1', web_id: 1, status: 'save' });
+  campaigns.set('draft1abc2', { id: 'draft1abc2', web_id: 1, status: 'save' });
   const env = await makeEnv();
-  const draft = await getReport(env, { campaignId: 'D1' });
+  const draft = await getReport(env, { campaignId: 'draft1abc2' });
   assert.equal(draft.sent, false);
   assert.equal(draft.status, 'save');
   assert.match(draft.message, /has not been sent/);
-  const gone = await getReport(env, { campaignId: 'GONE' });
+  const gone = await getReport(env, { campaignId: 'gone12345a' });
   assert.equal(gone.sent, false);
   assert.equal(gone.status, 'not_found');
   assert.ok(!calls.some((c) => c.path.startsWith('/reports')), 'the misleading reports endpoint is never consulted for unsent campaigns');
