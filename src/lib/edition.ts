@@ -107,8 +107,15 @@ export function consentProblems(edition: Pick<Edition, 'featured'>): string[] {
     .map((f) => `Consent for "${f.topic}" (${f.founder}${f.company ? `, ${f.company}` : ''}) is "${f.consent}", not confirmed.`);
 }
 
-function normalizeFeatured(input: FeaturedInput[], previous: Featured[], nowIso: string): Featured[] {
-  const usedIds = new Set(input.map((f) => f.id).filter(Boolean) as string[]);
+const same = (a: string, b: string) => a.trim().toLowerCase().replace(/\s+/g, ' ') === b.trim().toLowerCase().replace(/\s+/g, ' ');
+
+// Consent is for one specific story: one person and one topic. If either changes for
+// an existing story, the earlier consent no longer covers it, so consent resets to
+// "none" unless the caller states consent explicitly (for example because the editor
+// said it still applies). A story sent without an id is always a NEW story: it never
+// reuses an id from the previous list, so it can never inherit someone else's consent.
+function normalizeFeatured(input: FeaturedInput[], previous: Featured[], nowIso: string, resets: string[]): Featured[] {
+  const usedIds = new Set<string>([...(input.map((f) => f.id?.trim()).filter(Boolean) as string[]), ...previous.map((p) => p.id)]);
   let counter = 0;
   const nextId = () => {
     do counter++;
@@ -125,21 +132,29 @@ function normalizeFeatured(input: FeaturedInput[], previous: Featured[], nowIso:
 
     const id = f.id?.trim() || nextId();
     const prev = previous.find((p) => p.id === id);
-    const consent: Consent = f.consent ?? prev?.consent ?? 'none';
-    const consentVia = f.consentVia === undefined ? prev?.consentVia ?? null : f.consentVia?.trim() || null;
+    const founderChanged = !!prev && !same(prev.founder, founder);
+    const storyChanged = !!prev && (founderChanged || !same(prev.topic, topic));
+    const resetByChange = storyChanged && f.consent === undefined && prev!.consent !== 'none';
+    if (resetByChange) {
+      resets.push(
+        `The story changed (was "${prev!.topic}" about ${prev!.founder}, now "${topic}" about ${founder}), so the earlier consent (${prev!.consent}) no longer applies and was reset to "none". Ask the user whether ${founder} agreed to this story.`,
+      );
+    }
+    const consent: Consent = f.consent ?? (storyChanged ? 'none' : prev?.consent ?? 'none');
+    const consentVia = f.consentVia === undefined ? (resetByChange ? null : prev?.consentVia ?? null) : f.consentVia?.trim() || null;
     if (consent === 'confirmed' && !consentVia) {
       throw new EditionError(`Consent for "${topic}" (${founder}) is marked confirmed, so say how it was given (email, Slack, in person, ...) in consentVia.`);
     }
     return {
       id,
       founder,
-      company: f.company?.trim() ?? prev?.company ?? '',
+      company: f.company?.trim() ?? (founderChanged ? '' : prev?.company ?? ''),
       topic,
       consent,
       consentVia: consent === 'none' ? null : consentVia,
-      consentNote: f.consentNote?.trim() ?? prev?.consentNote ?? '',
-      confirmedAt: consent === 'confirmed' ? prev?.consent === 'confirmed' && prev.confirmedAt ? prev.confirmedAt : nowIso : null,
-      outcome: f.outcome === undefined ? prev?.outcome ?? null : f.outcome,
+      consentNote: f.consentNote?.trim() ?? (storyChanged ? '' : prev?.consentNote ?? ''),
+      confirmedAt: consent === 'confirmed' ? (prev?.consent === 'confirmed' && prev.confirmedAt && !storyChanged ? prev.confirmedAt : nowIso) : null,
+      outcome: f.outcome === undefined ? (storyChanged ? null : prev?.outcome ?? null) : f.outcome,
     };
   });
 }
@@ -161,7 +176,8 @@ export async function saveEdition(
   env: EditionEnv,
   input: EditionInput,
   by: string,
-): Promise<{ edition: Edition; created: boolean; consentWarnings: string[]; draftWarnings: string[] }> {
+): Promise<{ edition: Edition; created: boolean; consentWarnings: string[]; draftWarnings: string[]; consentResets: string[] }> {
+  const consentResets: string[] = [];
   const now = new Date().toISOString();
   let existing: Edition | null = null;
   if (input.editionId) {
@@ -210,7 +226,7 @@ export async function saveEdition(
     subject: input.subject ?? base.subject,
     previewText: input.previewText ?? base.previewText,
     bodyHtml: input.bodyHtml ?? base.bodyHtml,
-    featured: input.featured ? normalizeFeatured(input.featured, base.featured, now) : base.featured,
+    featured: input.featured ? normalizeFeatured(input.featured, base.featured, now, consentResets) : base.featured,
     campaignId: input.campaignId === undefined ? base.campaignId : input.campaignId,
     updatedAt: now,
     updatedBy: by,
@@ -223,7 +239,7 @@ export async function saveEdition(
     edition.campaignId && consentWarnings.length
       ? ['This edition already has a Mailchimp draft, and that draft may contain a story whose consent is not confirmed. create_draft will refuse to update it. Remove it with delete_draft (after checking with the user) until consent is confirmed again.']
       : [];
-  return { edition, created: !existing, consentWarnings, draftWarnings };
+  return { edition, created: !existing, consentWarnings, draftWarnings, consentResets };
 }
 
 /** Returns the edition with this id, or (no id) the most recently saved one. */

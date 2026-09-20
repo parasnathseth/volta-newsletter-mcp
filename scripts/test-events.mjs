@@ -5,7 +5,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { parseIcs } from '../src/lib/ics.ts';
-import { loadEvents, selectEvents, isValidBound, halifaxDate, formatLocal } from '../src/lib/events.ts';
+import { loadEvents, selectEvents, isValidBound, halifaxDate, formatLocal, defaultWindow } from '../src/lib/events.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const feedPath = join(here, '..', 'scratch', 'feed.ics');
@@ -96,6 +96,20 @@ test('nextOccurrence points at the next later event with the same title', () => 
   const sel = selectEvents(events, { from: '2026-01-05', to: '2026-01-05', now, includeDescriptions: false, limit: 10 });
   assert.equal(sel.events.length, 1);
   assert.equal(sel.events[0].nextOccurrence.url, 'https://e/b');
+});
+
+test('REGRESSION: the default window starts on the Halifax day, not the UTC day (evening events are not skipped)', () => {
+  // 2026-09-21T00:30Z is 9:30 PM on Sep 20 in Halifax. The UTC date would be Sep 21 and skip a 7 PM Sep 20 event.
+  const now = Date.parse('2026-09-21T00:30:00Z');
+  const w = defaultWindow(now);
+  assert.equal(w.from, '2026-09-20');
+  assert.equal(w.to, '2026-10-20');
+  const events = parseIcs(wrap(vevent(['UID:tonight', 'SUMMARY:Tonight', 'DTSTART:20260920T223000Z']))); // 7:30 PM Halifax on Sep 20
+  assert.equal(selectEvents(events, { ...w, now, includeDescriptions: false, limit: 10 }).events.length, 1);
+  // In winter (UTC-4) the same shift applies.
+  assert.equal(defaultWindow(Date.parse('2026-12-15T02:00:00Z')).from, '2026-12-14');
+  // Daytime is unaffected.
+  assert.equal(defaultWindow(Date.parse('2026-09-20T15:00:00Z')).from, '2026-09-20');
 });
 
 test('bound validation', () => {

@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
-import { loadEvents, isValidBound, selectEvents } from '../lib/events.ts';
+import { defaultWindow, loadEvents, isValidBound, selectEvents } from '../lib/events.ts';
 import { logEvent } from '../lib/log.ts';
 import { textResult } from '../lib/mcp.ts';
 import type { Env } from '../types.ts';
@@ -24,8 +24,9 @@ export function registerEventTools(server: McpServer, env: Env, userEmail: () =>
     },
     async ({ from, to, includeDescriptions, limit, refresh }) => {
       const now = Date.now();
-      const fromBound = from ?? new Date(now).toISOString().slice(0, 10);
-      const toBound = to ?? new Date(now + 30 * 86_400_000).toISOString().slice(0, 10);
+      const window = defaultWindow(now);
+      const fromBound = from ?? window.from;
+      const toBound = to ?? window.to;
       for (const [label, v] of [['from', fromBound], ['to', toBound]] as const) {
         if (!isValidBound(v)) {
           return { ...textResult(`Invalid "${label}" value "${v}". ${BOUND_HELP}`), isError: true };

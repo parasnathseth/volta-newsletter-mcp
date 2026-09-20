@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test scripts/test-events.mjs scripts/test-template.mjs scripts/test-edition.mjs scripts/test-campaign.mjs scripts/test-backlog.mjs",
     "phase0": "node --env-file=.dev.vars scripts/phase0.mjs",
-    "live:drafts": "node --env-file=.dev.vars scripts/live-draft-lifecycle.mjs"
+    "live:drafts": "node --env-file=.dev.vars scripts/live-draft-lifecycle.mjs",
+    "e2e": "node --env-file=.dev.vars scripts/e2e-workflows.mjs",
+    "skill:zip": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-skill-zip.ps1"
   },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "^0.10.3",

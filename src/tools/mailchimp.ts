@@ -17,12 +17,15 @@ export function registerMailchimpTools(server: McpServer, env: Env, bundledShell
     'create_draft',
     {
       description:
-        'Creates the Mailchimp DRAFT for a saved edition (never sends anything; the user reviews and sends it from Mailchimp). Uses the saved subject, preview text and body, so save_edition first. Refuses if any featured story lacks confirmed consent, if subject/preview text/body is missing, or if the edition\'s campaign was already sent. Calling it again for the same edition updates the same draft instead of making a duplicate. Returns a link to open the draft in Mailchimp and Mailchimp\'s own send-readiness checklist problems, which should be shown to the user. With no editionId it uses the most recently saved edition.',
-      inputSchema: { editionId: z.string().optional().describe('Edition id; omit for the most recently saved.') },
+        'Creates the Mailchimp DRAFT for a saved edition (never sends anything; the user reviews and sends it from Mailchimp). Uses the saved subject, preview text and body, so save_edition first. Refuses if any featured story lacks confirmed consent, if subject/preview text/body is missing, or if the edition\'s campaign was already sent. If the edition already has a draft, calling again is refused unless overwrite is true, because re-pushing replaces the draft\'s content with the saved edition and discards any edits made directly in Mailchimp: warn the user and get their OK first. Returns a link to open the draft in Mailchimp and Mailchimp\'s own send-readiness checklist problems, which should be shown to the user. Always pass the editionId you are working on: with no editionId it uses the most recently saved edition, which may not be the one you mean.',
+      inputSchema: {
+        editionId: z.string().optional().describe('Edition id. Always pass it; omitting it uses the most recently saved edition.'),
+        overwrite: z.boolean().optional().describe('Set true only after the user agrees to replace the existing Mailchimp draft (discarding edits made in Mailchimp).'),
+      },
     },
-    async ({ editionId }) => {
+    async ({ editionId, overwrite }) => {
       try {
-        const r = await createDraft(env, bundledShell, { editionId, by: user() });
+        const r = await createDraft(env, bundledShell, { editionId, by: user(), overwrite });
         logEvent('tool.create_draft', { user: user(), editionId: r.editionId, campaignId: r.campaignId, reused: r.reusedExistingDraft, dryRun: r.dryRun });
         return textResult(JSON.stringify(r));
       } catch (err) {
@@ -79,8 +82,8 @@ export function registerMailchimpTools(server: McpServer, env: Env, bundledShell
     'delete_draft',
     {
       description:
-        'Deletes the Mailchimp DRAFT that belongs to an edition (for example after consent for a story was withdrawn, or to start over). Destructive: always confirm with the user first. Only unsent drafts can be deleted; a sent or scheduled campaign is refused and must be handled in Mailchimp. The edition itself (body, subject, stories) stays saved and goes back to in progress, so create_draft can make a fresh draft later. With no editionId it uses the most recently saved edition.',
-      inputSchema: { editionId: z.string().optional().describe('Edition id; omit for the most recently saved.') },
+        'Deletes the Mailchimp DRAFT that belongs to an edition (for example after consent for a story was withdrawn, or to start over). Destructive: always confirm with the user first. Only unsent drafts can be deleted; a sent or scheduled campaign is refused and must be handled in Mailchimp. The edition itself (body, subject, stories) stays saved and goes back to in progress, so create_draft can make a fresh draft later. The editionId is required so a delete can never hit the wrong edition.',
+      inputSchema: { editionId: z.string().describe('The edition whose Mailchimp draft to delete (required).') },
     },
     async ({ editionId }) => {
       try {

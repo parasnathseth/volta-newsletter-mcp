@@ -62,7 +62,7 @@ const problemsFrom = (items: ChecklistItem[] = []) =>
   items.filter((i) => i.type === 'error' || i.type === 'warning').map((i) => `${i.type}: ${i.heading ?? ''}${i.details ? ` (${i.details.replace(/<[^>]+>/g, '').slice(0, 160)})` : ''}`);
 
 /** Creates (or re-pushes) the Mailchimp draft for an edition. Never sends. */
-export async function createDraft(env: CampaignEnv, bundledShell: string, args: { editionId?: string; by: string }): Promise<DraftResult> {
+export async function createDraft(env: CampaignEnv, bundledShell: string, args: { editionId?: string; by: string; overwrite?: boolean }): Promise<DraftResult> {
   const edition = await getEdition(env, args.editionId);
 
   const missing = missingFields(edition);
@@ -84,6 +84,11 @@ export async function createDraft(env: CampaignEnv, bundledShell: string, args: 
     }
     if (existing && existing.status !== 'save') {
       throw new EditionError(`This edition's Mailchimp campaign is already "${existing.status}" (not a draft), so it was left alone. Start a new edition for the next send.`);
+    }
+    if (existing && !args.overwrite) {
+      throw new EditionError(
+        `This edition already has a Mailchimp draft (${campaignAdminUrl(env, existing.web_id)}). Creating the draft again replaces that draft's content with the saved edition and discards any edits made directly in Mailchimp. If the user wants that, confirm with them and call create_draft again with overwrite: true.`,
+      );
     }
   }
 

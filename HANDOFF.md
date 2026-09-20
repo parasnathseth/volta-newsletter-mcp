@@ -27,7 +27,9 @@ Keep this list updated as the build progresses. Everything below is work that ha
 
 ## 4. Claude side
 - [ ] Add the connector in Claude (Customize > Connectors > custom connector, using the production `/mcp` URL). On Team/Enterprise an owner adds it for the organization. Free Claude plans allow only one custom connector.
-- [ ] Install/upload the Skill (`skill/SKILL.md`) for Bader and confirm it is picked up.
+- [ ] Install the Skill for Bader: run `npm run skill:zip` and upload `dist/volta-newsletter-skill.zip` in Claude's Skills settings (or zip `skill/volta-newsletter` so the archive holds `volta-newsletter/SKILL.md`). Confirm it is picked up by starting a chat and asking it to help with the newsletter.
+- [ ] After any deploy that adds or changes tools, disconnect and reconnect the connector in Claude so it reloads the tool list (Claude reads the list only when it connects).
+- [ ] Run `npm run e2e` and `npm run live:drafts` against a sandbox Mailchimp account after any change to the tools; both must pass before deploying.
 - [ ] Walk Bader through one full run (start an edition, research, preview, send test, push draft) on the production setup.
 
 ## 5. Configuration and operations

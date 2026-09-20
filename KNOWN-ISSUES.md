@@ -26,6 +26,15 @@ Smaller items to fix or look into later. Add to this as we go; move to HANDOFF.m
 - `send_test` is all-or-nothing on recipients: if any address is outside the allowed domains, nothing is sent.
 - A draft whose story later loses consent stays in Mailchimp until `delete_draft` is used; `save_edition` now warns about it.
 
+## Behaviour to be aware of (found in the Phase 8 review)
+- **"Latest edition" moves on every save.** Tools that default to the most recently saved edition can act on the wrong one after you record an outcome on an old edition. The Skill tells Claude to always pass `editionId`; `delete_draft` requires it. `create_draft`, `send_test`, `render_edition` and `get_report` still accept no id.
+- **Re-pushing replaces the Mailchimp draft.** Edits made directly in Mailchimp are lost on the next push. `create_draft` now refuses to re-push without `overwrite: true`, but the server cannot detect edits made in Mailchimp, only warn.
+- **Consent resets when a story's topic or founder changes** (safe direction: the editor has to re-confirm). A story sent without an `id` is always a new story with consent `none`; omitted stories are deleted. Sending the whole `featured` list with ids is required whenever it is changed.
+- **Body HTML checks are pattern-based**, checking tags and attributes (not prose). They stop accidents and obvious abuse but are not a full HTML sanitizer.
+- **`nextOccurrence` matches identical titles only**, and the Skill tells Claude to judge series itself.
+- Consent is still the editor's word; the server records it, it cannot verify it.
+- The Skill was checked against the code by an independent review and by the end-to-end harness (which extracts the Skill's HTML building blocks and runs them through the server's validation), but the Skill's effect on Claude's actual behaviour can only be judged in real conversations.
+
 ## Storage (Cloudflare KV)
 - **Never rely on KV `list` for correctness.** It is eventually consistent (a key written seconds ago can be missing from a listing, and so can its metadata). This caused a real bug: the backlog's duplicate check and `dueBy` filter used listings and missed just-added entries. Fixed by storing the backlog as one document, and keeping edition and template-version indexes as documents read by exact key. Regression tests use a KV whose `list` shows nothing. Any new feature must follow the same rule.
 - Everything is still last-write-wins; two people editing the backlog or the same edition in the same instant could overwrite each other. Fine for one or two editors.

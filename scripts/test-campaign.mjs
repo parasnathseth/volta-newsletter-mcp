@@ -129,13 +129,24 @@ test('create_draft happy path: template + body section, preview text, edition ma
   assert.equal(saved.campaignId, 'C1');
 });
 
-test('calling create_draft again updates the same draft (no duplicate)', async () => {
+test('re-pushing an existing draft is refused unless overwrite is confirmed (protects edits made in Mailchimp)', async () => {
+  const { calls } = installMailchimp();
+  const env = await makeEnv();
+  const e = await okEdition(env, confirmed);
+  await createDraft(env, shell, { editionId: e.id, by: 'u' });
+  const writesBefore = writes(calls).length;
+  await assert.rejects(createDraft(env, shell, { editionId: e.id, by: 'u' }), (err) => err instanceof EditionError && /discards any edits made directly in Mailchimp/.test(err.message) && /overwrite: true/.test(err.message));
+  await assert.rejects(createDraft(env, shell, { editionId: e.id, by: 'u', overwrite: false }), /overwrite: true/);
+  assert.equal(writes(calls).length, writesBefore, 'a refused re-push writes nothing to Mailchimp');
+});
+
+test('calling create_draft again with overwrite updates the same draft (no duplicate)', async () => {
   const { calls } = installMailchimp();
   const env = await makeEnv();
   const e = await okEdition(env, confirmed);
   await createDraft(env, shell, { editionId: e.id, by: 'u' });
   await saveEdition(env, { editionId: e.id, bodyHtml: '<p>Updated</p>' }, 'u');
-  const r = await createDraft(env, shell, { editionId: e.id, by: 'u' });
+  const r = await createDraft(env, shell, { editionId: e.id, by: 'u', overwrite: true });
   assert.equal(r.reusedExistingDraft, true);
   assert.equal(calls.filter((c) => c.method === 'POST' && c.path === '/campaigns').length, 1);
   assert.ok(calls.some((c) => c.method === 'PATCH' && c.path === '/campaigns/C1'));

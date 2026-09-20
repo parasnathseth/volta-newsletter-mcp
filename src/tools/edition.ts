@@ -53,6 +53,7 @@ export function registerEditionTools(server: McpServer, env: Env, bundledShell: 
             status: r.edition.status,
             featured: r.edition.featured.map((f) => ({ id: f.id, founder: f.founder, topic: f.topic, consent: f.consent })),
             consentWarnings: r.consentWarnings,
+            consentReset: r.consentResets.length ? r.consentResets : undefined,
             mailchimpDraftWarnings: r.draftWarnings.length ? r.draftWarnings : undefined,
             note: r.consentWarnings.length ? 'A Mailchimp draft cannot be created until every featured story has confirmed consent.' : undefined,
           }),

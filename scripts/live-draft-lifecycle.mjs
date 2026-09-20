@@ -46,8 +46,9 @@ try {
   check('edition now points at the draft', (await getEdition(env, edition.id)).campaignId === d1.campaignId);
 
   // 2. re-push
-  const d2 = await createDraft(env, shell, { editionId: edition.id, by: 'live-test' });
-  check('second create_draft reuses the same draft', d2.reusedExistingDraft && d2.campaignId === d1.campaignId);
+  check('re-pushing without overwrite is refused', (await throws(() => createDraft(env, shell, { editionId: edition.id, by: 'live-test' }))) !== null);
+  const d2 = await createDraft(env, shell, { editionId: edition.id, by: 'live-test', overwrite: true });
+  check('with overwrite, create_draft reuses the same draft', d2.reusedExistingDraft && d2.campaignId === d1.campaignId);
   const all = await mailchimp(env, 'GET', '/campaigns?count=100&fields=campaigns.id,campaigns.status,campaigns.settings.title');
   check('still exactly one matching draft in Mailchimp', all.campaigns.filter((c) => c.settings.title.startsWith('Live lifecycle test')).length === 1);
 

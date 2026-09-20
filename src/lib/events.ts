@@ -76,6 +76,11 @@ export function halifaxDate(iso: string): string {
   return `${p.year}-${p.month}-${p.day}`;
 }
 
+/** Default event window: today (Halifax calendar day) through 30 days later. Using the UTC date here would skip this evening's events after 8-9 pm Halifax time. */
+export function defaultWindow(now: number): { from: string; to: string } {
+  return { from: halifaxDate(new Date(now).toISOString()), to: halifaxDate(new Date(now + 30 * 86_400_000).toISOString()) };
+}
+
 export function formatLocal(iso: string, allDay: boolean): string {
   return (allDay ? dateLabel : dateTimeLabel).format(new Date(iso));
 }

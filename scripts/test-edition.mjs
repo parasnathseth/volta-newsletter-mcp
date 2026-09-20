@@ -64,16 +64,115 @@ test('consent is per story: none by default, confirmed needs a reason, timestamp
   assert.equal(f2.confirmedAt, null);
   assert.equal(a.consentWarnings.length, 1); // Sam still only "requested"
 
-  // Editing something else must not re-stamp the confirmation time.
+  // Editing something other than the topic must not re-stamp the confirmation time.
   await new Promise((r) => setTimeout(r, 5));
-  const b = await saveEdition(env, { editionId: edition.id, featured: [story({ id: 'f1', topic: 'Seed round (updated)' }), story({ id: 'f2', founder: 'Sam', topic: 'Launch' })] }, 'u');
+  const b = await saveEdition(env, { editionId: edition.id, featured: [story({ id: 'f1', company: 'Acme AI Inc.' }), story({ id: 'f2', founder: 'Sam', topic: 'Launch' })] }, 'u');
   assert.equal(b.edition.featured[0].confirmedAt, f1.confirmedAt);
   assert.equal(b.edition.featured[0].consent, 'confirmed'); // kept from before
+  assert.deepEqual(b.consentResets, []);
 
   // Withdrawing consent clears the confirmation.
   const c = await saveEdition(env, { editionId: edition.id, featured: [story({ id: 'f1', consent: 'none' })] }, 'u');
   assert.equal(c.edition.featured[0].confirmedAt, null);
   assert.equal(c.edition.featured[0].consentVia, null);
+});
+
+test('changing a story\'s topic resets its consent (consent covers one specific story)', async () => {
+  const env = makeEnv();
+  const { edition } = await saveEdition(env, { label: 'x', featured: [story({ consent: 'confirmed', consentVia: 'email', consentNote: 'agreed to the seed round piece' })] }, 'u');
+  const before = edition.featured[0];
+  assert.equal(before.consent, 'confirmed');
+
+  // Whitespace/case-only differences are the same topic.
+  const same = await saveEdition(env, { editionId: edition.id, featured: [story({ id: 'f1', topic: '  SEED   round ' })] }, 'u');
+  assert.equal(same.edition.featured[0].consent, 'confirmed');
+  assert.deepEqual(same.consentResets, []);
+
+  // A different topic, with no consent stated, resets everything about consent and says so.
+  const changed = await saveEdition(env, { editionId: edition.id, featured: [story({ id: 'f1', topic: 'Hiring their first engineer' })] }, 'u');
+  const f = changed.edition.featured[0];
+  assert.equal(f.consent, 'none');
+  assert.equal(f.consentVia, null);
+  assert.equal(f.confirmedAt, null);
+  assert.equal(f.consentNote, '');
+  assert.equal(changed.consentResets.length, 1);
+  assert.match(changed.consentResets[0], /SEED\s+round.*Hiring their first engineer.*reset to "none"/i);
+  assert.equal(changed.consentWarnings.length, 1);
+
+  // Stating consent explicitly with the new topic is honoured and gets a fresh timestamp.
+  await new Promise((r) => setTimeout(r, 5));
+  const explicit = await saveEdition(env, { editionId: edition.id, featured: [story({ id: 'f1', topic: 'Opening a second office', consent: 'confirmed', consentVia: 'in person' })] }, 'u');
+  assert.equal(explicit.edition.featured[0].consent, 'confirmed');
+  assert.equal(explicit.edition.featured[0].consentVia, 'in person');
+  assert.notEqual(explicit.edition.featured[0].confirmedAt, before.confirmedAt);
+  assert.deepEqual(explicit.consentResets, []);
+
+  // A story with no prior consent has nothing to reset, and brand-new stories start at "none".
+  const fresh = await saveEdition(env, { label: 'y', featured: [story({ topic: 'A' })] }, 'u');
+  const edited = await saveEdition(env, { editionId: fresh.edition.id, featured: [story({ id: 'f1', topic: 'B' })] }, 'u');
+  assert.deepEqual(edited.consentResets, []);
+});
+
+test('a story sent without its id is treated as new (consent none); omitted stories are dropped', async () => {
+  const env = makeEnv();
+  const { edition } = await saveEdition(env, { label: 'x', featured: [story({ consent: 'confirmed', consentVia: 'email' })] }, 'u');
+  const r = await saveEdition(env, { editionId: edition.id, featured: [story()] }, 'u'); // same person, no id
+  assert.equal(r.edition.featured.length, 1);
+  assert.equal(r.edition.featured[0].consent, 'none');
+  assert.notEqual(r.edition.featured[0].id, 'f1', 'an id-less story never reuses an existing story id');
+  const dropped = await saveEdition(env, { editionId: edition.id, featured: [] }, 'u');
+  assert.equal(dropped.edition.featured.length, 0);
+});
+
+test('REGRESSION: one person\'s consent can never carry over to a different person', async () => {
+  const env = makeEnv();
+  const { edition } = await saveEdition(env, { label: 'x', featured: [story({ consent: 'confirmed', consentVia: 'email' })] }, 'u');
+
+  // Replacing the list with a different founder and NO ids must not inherit Jane's consent,
+  // even when the topic text happens to be identical.
+  const swapped = await saveEdition(env, { editionId: edition.id, featured: [{ founder: 'Someone Else', company: 'Other Co', topic: 'Seed round' }] }, 'u');
+  assert.equal(swapped.edition.featured[0].consent, 'none');
+  assert.equal(swapped.consentWarnings.length, 1);
+
+  // Reusing the id with a different founder (same topic) also resets, and says why.
+  const again = await saveEdition(env, { label: 'y', featured: [story({ consent: 'confirmed', consentVia: 'email', outcome: 'got two intros' })] }, 'u');
+  const id = again.edition.featured[0].id;
+  const reused = await saveEdition(env, { editionId: again.edition.id, featured: [{ id, founder: 'Different Person', topic: 'Seed round' }] }, 'u');
+  const f = reused.edition.featured[0];
+  assert.equal(f.consent, 'none');
+  assert.equal(f.consentVia, null);
+  assert.equal(f.company, '', 'the previous person\'s company is not carried over');
+  assert.equal(f.outcome, null, 'the previous person\'s outcome is not carried over');
+  assert.equal(reused.consentResets.length, 1);
+  assert.match(reused.consentResets[0], /Jane Doe.*Different Person/);
+});
+
+test('re-sending the same story with its id and explicit fields keeps consent and outcome', async () => {
+  const env = makeEnv();
+  const { edition } = await saveEdition(env, { label: 'x', featured: [story({ consent: 'confirmed', consentVia: 'email', outcome: 'got an intro' })] }, 'u');
+  const r = await saveEdition(env, { editionId: edition.id, featured: [{ id: 'f1', founder: 'jane doe', topic: 'SEED ROUND' }] }, 'u');
+  const f = r.edition.featured[0];
+  assert.equal(f.consent, 'confirmed');
+  assert.equal(f.outcome, 'got an intro');
+  assert.equal(f.confirmedAt, edition.featured[0].confirmedAt);
+  assert.deepEqual(r.consentResets, []);
+});
+
+test('HTML safety looks at tags and attributes, not prose', async () => {
+  const env = makeEnv();
+  const ok = (body) => saveEdition(env, { bodyHtml: body }, 'u');
+  await ok('<p>Learn JavaScript: the basics, and what we did once=twice at the meetup.</p>');
+  await ok('<p>Working with the onboarding=process and ion= values</p>');
+  await ok('<a href="https://example.com/javascript-tips" style="color:#05D9E7;">JavaScript tips</a>');
+  const bad = (body, re) => assert.rejects(saveEdition(env, { bodyHtml: body }, 'u'), (e) => e instanceof EditionError && re.test(e.message));
+  await bad('<a href="javascript:alert(1)">x</a>', /javascript: links/);
+  await bad('<a href=" JavaScript:alert(1)">x</a>', /javascript: links/);
+  await bad('<img src=javascript:alert(1)>', /javascript: links/);
+  await bad('<a href="x"onclick="y()">x</a>', /event handler/);
+  await bad('<div\nonmouseover="y()">x</div>', /event handler/);
+  await bad('<img src="x" ONERROR="y()">', /event handler/);
+  await bad('<script src="x"></script>', /Script/);
+  await bad('<script/src=x>', /Script/);
 });
 
 test('an edition with no featured stories has no consent problems', async () => {
