@@ -298,6 +298,16 @@ export async function listEditions(env: EditionEnv): Promise<EditionSummary[]> {
   return sortNewestFirst(await readIndex(env));
 }
 
+/** Deletes a saved edition from storage and from the index. Callers must have checked that it is safe (see deleteEdition in campaign.ts). */
+export async function removeEdition(env: EditionEnv, id: string): Promise<void> {
+  if (!EDITION_ID.test(id)) throw new EditionError('That does not look like an edition id.');
+  const index = (await readIndex(env)).filter((x) => x.id !== id);
+  await env.OAUTH_KV.put(INDEX_KEY, JSON.stringify(sortNewestFirst(index)));
+  await env.OAUTH_KV.delete(`${KEY_PREFIX}${id}`);
+  // "Latest edition" must never point at something that no longer exists.
+  if ((await env.OAUTH_KV.get(POINTER_KEY)) === id) await env.OAUTH_KV.delete(POINTER_KEY);
+}
+
 /** Records that an edition now has a Mailchimp draft (used by create_draft). */
 export async function markDrafted(
   env: EditionEnv,

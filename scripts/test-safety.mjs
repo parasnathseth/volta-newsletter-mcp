@@ -46,7 +46,7 @@ test('rate limit: unlimited actions pass, and counters expire on their own (KV n
 });
 
 test('rate limit: every risky tool has a limit configured', () => {
-  for (const action of ['send_test', 'update_template', 'restore_template', 'delete_draft', 'create_draft', 'backlog_remove']) {
+  for (const action of ['send_test', 'update_template', 'restore_template', 'delete_draft', 'delete_edition', 'create_draft', 'backlog_remove']) {
     assert.ok(LIMITS[action]?.max > 0, action);
   }
 });

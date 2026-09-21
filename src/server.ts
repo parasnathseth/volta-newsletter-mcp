@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import { logEvent } from './lib/log.ts';
 import { textResult } from './lib/mcp.ts';
+import { registerAnalyticsTools } from './tools/analytics.ts';
 import { registerBacklogTools } from './tools/backlog.ts';
 import { registerEditionTools } from './tools/edition.ts';
 import { registerEventTools } from './tools/events.ts';
@@ -45,6 +46,7 @@ export function createServer(env: Env, bundledShell: string, currentUser: () => 
   registerEditionTools(server, env, bundledShell, userEmail);
   registerMailchimpTools(server, env, bundledShell, userEmail);
   registerBacklogTools(server, env, userEmail);
+  registerAnalyticsTools(server, env, userEmail);
 
   return server;
 }

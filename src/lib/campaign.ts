@@ -1,6 +1,7 @@
 import { campaignAdminUrl, isDryRun, mailchimp, MailchimpError, type MailchimpEnv } from './mailchimp.ts';
-import { clearDraft, consentProblems, EditionError, getEdition, markDrafted, type Edition, type EditionEnv } from './edition.ts';
+import { clearDraft, consentProblems, EditionError, getEdition, markDrafted, removeEdition, type Edition, type EditionEnv } from './edition.ts';
 import { getTemplateState, type TemplateEnv } from './template.ts';
+import { reportExtras, type ReportExtras } from './analytics.ts';
 
 export interface CampaignEnv extends MailchimpEnv, EditionEnv, TemplateEnv {
   TEST_EMAIL_ALLOWED_DOMAINS?: string;
@@ -207,7 +208,7 @@ export async function sendTest(
 
 // ---- reports ------------------------------------------------------------------
 
-export interface ReportOut {
+export interface ReportOut extends ReportExtras {
   sent: true;
   campaignId: string;
   title: string;
@@ -249,7 +250,8 @@ export async function getReport(env: CampaignEnv, args: { campaignId?: string; e
     return { sent: false, campaignId, status: campaign.status, message: `This campaign has not been sent (status: ${campaign.status}), so there are no results yet.` };
   }
   const r: any = await mailchimp(env, 'GET', `/reports/${campaignId}`);
-  const clicks = await mailchimp<{ urls_clicked?: any[] }>(env, 'GET', `/reports/${campaignId}/click-details?count=20`).catch(() => ({ urls_clicked: [] }));
+  const clicks = await mailchimp<{ urls_clicked?: any[] }>(env, 'GET', `/reports/${campaignId}/click-details?count=50`).catch(() => ({ urls_clicked: [] }));
+  const extras = await reportExtras(env, campaignId, r, clicks.urls_clicked ?? []);
   return {
     sent: true,
     campaignId,
@@ -265,6 +267,7 @@ export async function getReport(env: CampaignEnv, args: { campaignId?: string; e
       .map((u) => ({ url: u.url, totalClicks: u.total_clicks ?? 0, uniqueClicks: u.unique_clicks ?? 0 }))
       .sort((a, b) => b.uniqueClicks - a.uniqueClicks)
       .slice(0, 10),
+    ...extras,
   };
 }
 
@@ -304,6 +307,42 @@ export async function deleteDraft(env: CampaignEnv, args: { editionId?: string; 
   await mailchimp(env, 'DELETE', `/campaigns/${campaignId}`);
   await clearDraft(env, edition.id, args.by);
   return { editionId: edition.id, campaignId, outcome: 'deleted', dryRun: false, note: 'The Mailchimp draft was deleted and the edition is back to in progress. The edition content is still saved.' };
+}
+
+// ---- delete_edition -----------------------------------------------------------
+
+export interface DeleteEditionResult {
+  deleted: boolean;
+  dryRun: boolean;
+  edition: Edition;
+  note: string;
+}
+
+/**
+ * Permanently deletes a saved edition. Refused while the edition has a live Mailchimp campaign:
+ * a draft must be removed with delete_draft first, and a sent or scheduled campaign keeps its
+ * edition as the record of who consented and what the outcomes were.
+ */
+export async function deleteEdition(env: CampaignEnv, args: { editionId: string }): Promise<DeleteEditionResult> {
+  if (!args.editionId) throw new EditionError('An editionId is required.');
+  const edition = await getEdition(env, args.editionId); // validates the id and throws if it does not exist
+  if (edition.campaignId) {
+    let status: string | null = null;
+    try {
+      status = (await mailchimp<{ status: string }>(env, 'GET', `/campaigns/${edition.campaignId}?fields=id,status`)).status;
+    } catch (err) {
+      if (!(err instanceof MailchimpError && err.status === 404)) throw err; // any other failure: do not guess, do not delete
+    }
+    if (status === 'save') {
+      throw new EditionError(`This edition still has a Mailchimp draft (${edition.campaignId}). Delete the draft first with delete_draft, then delete the edition.`);
+    }
+    if (status !== null) {
+      throw new EditionError(`This edition's campaign is "${status}" in Mailchimp (sent or scheduled). Sent editions are kept as the record of consent and outcomes, so it was not deleted.`);
+    }
+  }
+  if (isDryRun(env)) return { deleted: false, dryRun: true, edition, note: `Dry run: would delete edition ${edition.id}. Nothing was changed.` };
+  await removeEdition(env, edition.id);
+  return { deleted: true, dryRun: false, edition, note: 'The edition was permanently deleted. The copy above is all that remains; to keep its content, save it elsewhere.' };
 }
 
 export interface PastCampaign {

@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { createDraft, sendTest, getReport, listPastCampaigns, checkTestRecipients, deleteDraft, ConsentError } from '../src/lib/campaign.ts';
-import { saveEdition, getEdition, EditionError } from '../src/lib/edition.ts';
+import { createDraft, sendTest, getReport, listPastCampaigns, checkTestRecipients, deleteDraft, deleteEdition, ConsentError } from '../src/lib/campaign.ts';
+import { saveEdition, getEdition, listEditions, EditionError } from '../src/lib/edition.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const shell = readFileSync(join(here, '..', 'template', 'shell.html'), 'utf8');
@@ -329,4 +329,81 @@ test('list_past_campaigns maps summaries and optionally includes cleaned content
   assert.equal(plain[0].text, undefined);
   const withText = await listPastCampaigns(env, { limit: 5, includeContent: true });
   assert.equal(withText[0].text, 'Hello from the past S1');
+});
+
+test('delete_edition removes an edition with no campaign, from storage, the list and the latest pointer', async () => {
+  installMailchimp();
+  const env = await makeEnv();
+  const keep = await okEdition(env, { label: 'Keep' });
+  const junk = await okEdition(env, { label: 'Junk' }); // latest
+  const r = await deleteEdition(env, { editionId: junk.id });
+  assert.equal(r.deleted, true);
+  assert.equal(r.edition.label, 'Junk', 'the deleted content is returned');
+  await assert.rejects(getEdition(env, junk.id), /not found/);
+  assert.deepEqual((await listEditions(env)).map((x) => x.id), [keep.id]);
+  assert.equal((await getEdition(env)).id, keep.id, 'latest no longer points at the deleted edition');
+});
+
+test('delete_edition still updates the list when KV listing shows nothing (eventual consistency)', async () => {
+  installMailchimp();
+  const env = await makeEnv();
+  const a = await okEdition(env, { label: 'A' });
+  const b = await okEdition(env, { label: 'B' });
+  env.OAUTH_KV.list = async () => ({ keys: [], list_complete: true });
+  await deleteEdition(env, { editionId: a.id });
+  assert.deepEqual((await listEditions(env)).map((x) => x.id), [b.id]);
+});
+
+test('delete_edition refuses while a Mailchimp draft exists, and after a sent or scheduled campaign', async () => {
+  const { campaigns } = installMailchimp();
+  const env = await makeEnv();
+  const e = await okEdition(env, confirmed);
+  await createDraft(env, shell, { editionId: e.id, by: 'u' });
+  await assert.rejects(deleteEdition(env, { editionId: e.id }), /delete_draft/);
+  const id = [...campaigns.keys()][0];
+  for (const status of ['sent', 'schedule', 'sending']) {
+    campaigns.get(id).status = status;
+    await assert.rejects(deleteEdition(env, { editionId: e.id }), /kept as the record/);
+  }
+  assert.equal((await getEdition(env, e.id)).id, e.id, 'still there after every refusal');
+});
+
+test('delete_edition works once the draft was deleted directly in Mailchimp (404), and after delete_draft', async () => {
+  const { campaigns } = installMailchimp();
+  const env = await makeEnv();
+  const e = await okEdition(env, confirmed);
+  await createDraft(env, shell, { editionId: e.id, by: 'u' });
+  campaigns.clear(); // deleted by hand in Mailchimp
+  assert.equal((await deleteEdition(env, { editionId: e.id })).deleted, true);
+
+  const e2 = await okEdition(env, confirmed);
+  await createDraft(env, shell, { editionId: e2.id, by: 'u' });
+  await deleteDraft(env, { editionId: e2.id, by: 'u' });
+  assert.equal((await deleteEdition(env, { editionId: e2.id })).deleted, true);
+});
+
+test('delete_edition refuses to guess when Mailchimp fails, and rejects missing, bad or unknown ids', async () => {
+  const { campaigns } = installMailchimp();
+  const env = await makeEnv();
+  const e = await okEdition(env, confirmed);
+  await createDraft(env, shell, { editionId: e.id, by: 'u' });
+  const real = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ title: 'down', detail: 'x' }), { status: 500 });
+  await assert.rejects(deleteEdition(env, { editionId: e.id }));
+  globalThis.fetch = real;
+  assert.equal((await getEdition(env, e.id)).id, e.id, 'not deleted when the status could not be checked');
+  void campaigns;
+  await assert.rejects(deleteEdition(env, { editionId: '' }), /required/);
+  await assert.rejects(deleteEdition(env, { editionId: '../evil' }), /not found/);
+  await assert.rejects(deleteEdition(env, { editionId: 'ed_doesnotexist0000000000000' }), /not found/);
+});
+
+test('delete_edition honours dry-run', async () => {
+  installMailchimp();
+  const env = await makeEnv({ MAILCHIMP_DRY_RUN: 'true' });
+  const e = await okEdition(env);
+  const r = await deleteEdition(env, { editionId: e.id });
+  assert.equal(r.dryRun, true);
+  assert.equal(r.deleted, false);
+  assert.equal((await getEdition(env, e.id)).id, e.id);
 });

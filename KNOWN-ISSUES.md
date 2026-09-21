@@ -57,3 +57,10 @@ Still open, by design or by cost:
 - [ ] The consent page's state entry is not deleted on the failure branches; it expires by itself after 10 minutes and is bound to the browser cookie, so this is low risk.
 - [ ] No Google `nonce`/PKCE on the Google leg; state plus the `__Host-` cookie binding already prevents login CSRF, and the ID token comes straight from Google over TLS.
 - [ ] Tool calls are not re-authorized at tool level; authorization rests on the OAuth provider guarding `/mcp` and the sign-in access rule.
+
+## Analytics (added after Phase 9)
+- `compare_campaigns`, `get_audience_stats` and the extra `get_report` fields are read-only and aggregate. Domains, regions and countries with fewer than 5 people are merged into "Other (small groups)"; no per-subscriber Mailchimp endpoint (`email-activity`, `sent-to`, members) is called.
+- Open rates leave out Apple Mail's automatic opens (`proxy_excluded_*`). Mailchimp's field names come from its docs and the sandbox; only one tiny sent campaign was available to test against, so the shape of a busy real account (many domains, regions, months of history) is untested.
+- The audience used is the first one in the account, or `MAILCHIMP_LIST_ID` if set (same rule as drafts).
+- No link-to-story matching: `get_report` returns per-URL clicks and `unclickedLinks`, and Claude reads them against the edition. Experiments are noted in the edition `label`; there is no dedicated field.
+- A/B test results are not read or created (not needed at this list size; paid-plan features unverified).

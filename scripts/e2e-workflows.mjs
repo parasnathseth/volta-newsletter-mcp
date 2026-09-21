@@ -73,8 +73,8 @@ try {
   check('initialize succeeds', init.status === 200 && init.body.result?.serverInfo?.name === 'volta-newsletter');
   const list = await rpc(liveHandler, liveEnv, 'tools/list', {});
   const tools = list.body.result.tools;
-  const expected = ['ping', 'whoami', 'get_upcoming_events', 'get_template', 'update_template', 'list_template_versions', 'restore_template', 'save_edition', 'get_edition', 'list_editions', 'render_edition', 'create_draft', 'send_test', 'get_report', 'list_past_campaigns', 'delete_draft', 'backlog_add', 'backlog_list', 'backlog_update', 'backlog_remove'];
-  check('exactly the expected 20 tools are exposed', tools.length === expected.length && expected.every((n) => tools.some((t) => t.name === n)), tools.map((t) => t.name).filter((n) => !expected.includes(n)).join(',') || `${tools.length} tools`);
+  const expected = ['ping', 'whoami', 'get_upcoming_events', 'get_template', 'update_template', 'list_template_versions', 'restore_template', 'save_edition', 'get_edition', 'list_editions', 'render_edition', 'create_draft', 'send_test', 'get_report', 'list_past_campaigns', 'compare_campaigns', 'get_audience_stats', 'delete_draft', 'delete_edition', 'backlog_add', 'backlog_list', 'backlog_update', 'backlog_remove'];
+  check('exactly the expected 23 tools are exposed', tools.length === expected.length && expected.every((n) => tools.some((t) => t.name === n)), tools.map((t) => t.name).filter((n) => !expected.includes(n)).join(',') || `${tools.length} tools`);
   check('every tool has a real description and an input schema', tools.every((t) => (t.description ?? '').length > 30 && t.inputSchema?.type === 'object'), tools.filter((t) => (t.description ?? '').length <= 30).map((t) => t.name).join(','));
   check('whoami reports the signed-in user', (await tool('whoami')).text.includes('e2e@voltaeffect.com'));
 
@@ -184,6 +184,17 @@ try {
   const past2 = await tool('list_past_campaigns', { limit: 5, includeContent: true });
   check('list_past_campaigns works against real Mailchimp', !past2.error && Array.isArray(past2.json?.campaigns), `${past2.json?.count} campaigns`);
 
+  section('Analytics (read-only)');
+  const cmp = await tool('compare_campaigns', { limit: 6 });
+  check('compare_campaigns works against real Mailchimp and lists only sent campaigns', !cmp.error && Array.isArray(cmp.json?.campaigns) && !cmp.json.campaigns.some((c) => c.campaignId === campaignId), `${cmp.json?.count} sent`);
+  const aud = await tool('get_audience_stats', { months: 3 });
+  check('get_audience_stats returns aggregates and no addresses', !aud.error && typeof aud.json?.subscribers === 'number' && !/@/.test(aud.text), `${aud.json?.subscribers} subscribers`);
+  const sentOne = cmp.json?.campaigns?.[0];
+  if (sentOne) {
+    const rep2 = await tool('get_report', { campaignId: sentOne.campaignId });
+    check('get_report on a sent campaign includes Apple-excluded opens, domains, regions and no addresses', rep2.json?.sent === true && rep2.json.opensExcludingApple && Array.isArray(rep2.json.opensByDomain) && Array.isArray(rep2.json.opensByRegion) && !/@/.test(rep2.text), rep2.text.slice(0, 120));
+  }
+
   section('Withdrawing consent after a draft exists');
   const withdrawn = await tool('save_edition', { editionId, featured: [{ id: 'f1', founder: 'Jane Doe', company: 'Acme AI', topic: 'Hiring their first engineer', consent: 'none' }] });
   check('withdrawing consent warns that a Mailchimp draft still exists', withdrawn.json?.mailchimpDraftWarnings?.[0]?.includes('delete_draft'));
@@ -196,6 +207,21 @@ try {
   const afterDelete = (await tool('get_edition', { id: editionId })).json;
   check('the edition is reopened with its content kept', afterDelete.campaignId === null && afterDelete.status === 'in_progress' && afterDelete.bodyHtml.includes('Here is what is on at Volta'));
   check('deleting again is a clear error', (await tool('delete_draft', { editionId })).error);
+
+  section('Deleting a saved edition');
+  const junk = await tool('save_edition', { label: 'E2E throwaway', subject: 'Throwaway', previewText: 'Throwaway', bodyHtml: '<p>Throwaway</p>', featured: [{ founder: 'Temp Person', topic: 'Temp', consent: 'confirmed', consentVia: 'e2e' }] });
+  const junkId = junk.json?.editionId;
+  check('delete_edition without an editionId is rejected', (await tool('delete_edition', {})).error);
+  const junkDraft = await tool('create_draft', { editionId: junkId });
+  if (junkDraft.json?.campaignId) createdCampaigns.add(junkDraft.json.campaignId);
+  const refusedDelete = await tool('delete_edition', { editionId: junkId });
+  check('delete_edition is refused while a Mailchimp draft exists', refusedDelete.error && /delete_draft/.test(refusedDelete.text), refusedDelete.text.slice(0, 100));
+  check('the refused edition is still saved', !(await tool('get_edition', { id: junkId })).error);
+  await tool('delete_draft', { editionId: junkId });
+  const goneEd = await tool('delete_edition', { editionId: junkId });
+  check('delete_edition succeeds once the draft is gone and returns what was deleted', !goneEd.error && goneEd.json?.deleted === true && goneEd.json.edition?.label === 'E2E throwaway', goneEd.text.slice(0, 100));
+  check('the deleted edition is gone from get_edition and list_editions', (await tool('get_edition', { id: junkId })).error && !(await tool('list_editions')).json?.editions?.some((e) => e.id === junkId));
+  check('the other edition is unaffected', !(await tool('get_edition', { id: editionId })).error);
 
   section('Continuing in a "new chat" and replacing the featured list');
   const latest = await tool('get_edition', {});

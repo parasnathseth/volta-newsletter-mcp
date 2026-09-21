@@ -13,8 +13,9 @@ Editor <-> Claude (+ the volta-newsletter Skill) --MCP over HTTPS + Google OAuth
 | Area | Tools |
 |---|---|
 | Events | `get_upcoming_events` (real feed, Halifax times, cached) |
-| Editions | `save_edition`, `get_edition`, `list_editions`, `render_edition` |
+| Editions | `save_edition`, `get_edition`, `list_editions`, `render_edition`, `delete_edition` |
 | Mailchimp | `create_draft`, `send_test`, `delete_draft`, `get_report`, `list_past_campaigns` |
+| Analytics (read-only, aggregate) | `compare_campaigns`, `get_audience_stats`, plus the richer `get_report` |
 | Template | `get_template`, `update_template`, `list_template_versions`, `restore_template` |
 | Founder backlog | `backlog_add`, `backlog_list`, `backlog_update`, `backlog_remove` |
 

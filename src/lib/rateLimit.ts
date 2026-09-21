@@ -20,6 +20,7 @@ export const LIMITS: Record<string, Limit> = {
   update_template: { max: 20, windowSeconds: 3600 },
   restore_template: { max: 20, windowSeconds: 3600 },
   delete_draft: { max: 20, windowSeconds: 3600 },
+  delete_edition: { max: 20, windowSeconds: 3600 },
   create_draft: { max: 30, windowSeconds: 3600 },
   backlog_remove: { max: 30, windowSeconds: 3600 },
 };

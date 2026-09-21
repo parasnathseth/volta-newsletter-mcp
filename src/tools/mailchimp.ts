@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
-import { ConsentError, createDraft, deleteDraft, getReport, listPastCampaigns, sendTest } from '../lib/campaign.ts';
+import { ConsentError, createDraft, deleteDraft, deleteEdition, getReport, listPastCampaigns, sendTest } from '../lib/campaign.ts';
 import { EditionError } from '../lib/edition.ts';
 import { logEvent } from '../lib/log.ts';
 import { textResult } from '../lib/mcp.ts';
@@ -64,7 +64,7 @@ export function registerMailchimpTools(server: McpServer, env: Env, bundledShell
     'get_report',
     {
       description:
-        'Performance of a sent newsletter from Mailchimp: emails sent, opens, clicks, unsubscribes, bounces and the most-clicked links. Give a campaignId, or an editionId (or neither for the most recently saved edition). If the campaign has not been sent (a draft, deleted or scheduled), the result has sent:false and a message instead of numbers. Small numbers are noisy; say so rather than over-interpreting them.',
+        'Performance of a sent newsletter from Mailchimp: emails sent, opens (raw, and opensExcludingApple, which leaves out the automatic opens Apple Mail generates and is the more honest figure), clicks, unsubscribes, bounces, the most-clicked links, links nobody clicked (unclickedLinks), and opens by email domain and by region (aggregate only; groups under 5 are merged into "Other"). Give a campaignId, or an editionId (or neither for the most recently saved edition). If the campaign has not been sent (a draft, deleted or scheduled), the result has sent:false and a message instead of numbers. Small numbers are noisy; say so rather than over-interpreting them.',
       inputSchema: {
         campaignId: z.string().optional().describe('Mailchimp campaign id (from list_past_campaigns).'),
         editionId: z.string().optional().describe('Edition id; used to find its campaign.'),
@@ -97,6 +97,26 @@ export function registerMailchimpTools(server: McpServer, env: Env, bundledShell
       } catch (err) {
         logEvent('tool.delete_draft.error', { user: user(), message: (err as Error).message.slice(0, 200) });
         return fail(friendly('Could not delete the draft', err));
+      }
+    },
+  );
+
+  server.registerTool(
+    'delete_edition',
+    {
+      description:
+        'PERMANENTLY deletes a saved edition (its body, subject, stories, consent records and outcomes). Destructive and not recoverable: always confirm with the user first, say which edition (label and id) will go, and that the founder consent and outcome records in it go too. Refused if the edition still has a Mailchimp draft (run delete_draft first) or if its campaign was sent or scheduled (sent editions are kept as the record). Use it for test or abandoned editions. The editionId is required, so it can never hit the wrong edition; the result returns the deleted content.',
+      inputSchema: { editionId: z.string().describe('The edition to delete (required). Get it from list_editions.') },
+    },
+    async ({ editionId }) => {
+      try {
+        await checkRateLimit(env, 'delete_edition', user());
+        const r = await deleteEdition(env, { editionId });
+        logEvent('tool.delete_edition', { user: user(), editionId, deleted: r.deleted, dryRun: r.dryRun });
+        return textResult(JSON.stringify(r));
+      } catch (err) {
+        logEvent('tool.delete_edition.error', { user: user(), message: (err as Error).message.slice(0, 200) });
+        return fail(friendly('Could not delete the edition', err));
       }
     },
   );
