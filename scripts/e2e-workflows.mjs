@@ -14,7 +14,7 @@ import { mailchimp } from '../src/lib/mailchimp.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const shell = readFileSync(join(here, '..', 'template', 'shell.html'), 'utf8');
-const skill = readFileSync(join(here, '..', 'skill', 'volta-newsletter', 'SKILL.md'), 'utf8');
+const skill = readFileSync(join(here, '..', 'skill', 'volta-newsletter', 'brand-and-html.md'), 'utf8');
 const key = process.env.MAILCHIMP_API_KEY;
 if (!key) { console.error('MAILCHIMP_API_KEY missing (put it in .dev.vars)'); process.exit(1); }
 

@@ -64,3 +64,8 @@ Still open, by design or by cost:
 - The audience used is the first one in the account, or `MAILCHIMP_LIST_ID` if set (same rule as drafts).
 - No link-to-story matching: `get_report` returns per-URL clicks and `unclickedLinks`, and Claude reads them against the edition. Experiments are noted in the edition `label`; there is no dedicated field.
 - A/B test results are not read or created (not needed at this list size; paid-plan features unverified).
+
+## Style drift (brand check)
+- `save_edition` refuses a new `bodyHtml` whose colours leave Volta's dark palette (`src/lib/brand.ts`): off-palette hex, colour names and functions, light backgrounds, dark text without a bright background. `allowOffBrand: true` overrides it when the editor explicitly asks for a different look (logged as `offBrandAllowed`). It checks colours only; it cannot judge layout, spacing or fonts.
+- The palette is a constant in `brand.ts`, and the Skill's building blocks are tested against it. If the brand colours change, update both `brand.ts` and the Skill.
+- **Not enforceable server-side: the preview.** `render_edition` returns HTML that Claude shows in an artifact; a weaker model can retype it and restyle it. The Skill says to copy it exactly, but `send_test` (a real email) is the trustworthy preview. In a test with Haiku writing bodies from the Skill (old and new versions), the body stayed on brand both times, so the drift seen in a real chat probably came from the preview step; unconfirmed.

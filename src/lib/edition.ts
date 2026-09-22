@@ -1,3 +1,4 @@
+import { BRAND_SUMMARY, offBrandProblems } from './brand.ts';
 import { unsafeHtmlProblems } from './htmlSafety.ts';
 
 // An "edition" is one newsletter being worked on: its body, subject and the
@@ -61,6 +62,8 @@ export interface EditionInput {
   subject?: string;
   previewText?: string;
   bodyHtml?: string;
+  /** Set only when the editor explicitly asked for a look outside the brand palette. */
+  allowOffBrand?: boolean;
   featured?: FeaturedInput[];
   campaignId?: string | null;
 }
@@ -196,6 +199,14 @@ export async function saveEdition(
     if (/mc:edit\s*=/i.test(input.bodyHtml)) throw new EditionError('bodyHtml must not contain mc:edit regions; it is inserted into the template\'s body region.');
     const unsafe = unsafeHtmlProblems(input.bodyHtml);
     if (unsafe.length) throw new EditionError(`Body not saved: ${unsafe.join(' ')}`);
+    if (!input.allowOffBrand) {
+      const off = offBrandProblems(input.bodyHtml);
+      if (off.length) {
+        throw new EditionError(
+          `Body not saved: it leaves Volta's dark brand style. ${off.join(' ')} Rebuild it from the Skill's building blocks and brand colours (${BRAND_SUMMARY}). Only if the editor explicitly asked for a different look, save again with allowOffBrand set to true.`,
+        );
+      }
+    }
   }
   if (input.subject !== undefined && input.subject.length > 150) throw new EditionError('The subject line is too long (max 150 characters).');
   if (input.previewText !== undefined && input.previewText.length > 200) throw new EditionError('The preview text is too long (max 200 characters).');

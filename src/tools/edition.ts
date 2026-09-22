@@ -28,7 +28,7 @@ export function registerEditionTools(server: McpServer, env: Env, bundledShell: 
     'save_edition',
     {
       description:
-        'Saves the newsletter edition being worked on so any later chat can pick it up. With no editionId it creates a new edition; with an editionId it updates only the fields you pass (others are kept). bodyHtml is only the newsletter content (an HTML fragment with inline styles) that goes inside the template\'s body region: no <html>/<body>, no scripts, no mc:edit. Event details in it must come verbatim from get_upcoming_events. List every founder story in `featured` with its own consent status; passing `featured` replaces the whole list. Never set consent to "confirmed" unless the user has told you the founder agreed to this story, and record how in consentVia. Returns the edition id and any consent warnings.',
+        'Saves the newsletter edition being worked on so any later chat can pick it up. With no editionId it creates a new edition; with an editionId it updates only the fields you pass (others are kept). bodyHtml is only the newsletter content (an HTML fragment with inline styles) that goes inside the template\'s body region: no <html>/<body>, no scripts, no mc:edit. It must stay in Volta\'s dark brand style: the email is dark, so use only the brand colours (backgrounds #0A0A0A, #0A0A0C, #14101F, #232327, #332A55; text #F5F5F7, #D9D9DE, #A3A3AD, #FFFFFF; accents #05D9E7, #6101FF, #FF6D6D, #FFBB0E) and the Skill\'s building blocks; light backgrounds, dark text and other colours are refused unless the user explicitly asked for a different look (then set allowOffBrand true). Event details in it must come verbatim from get_upcoming_events. List every founder story in `featured` with its own consent status; passing `featured` replaces the whole list. Never set consent to "confirmed" unless the user has told you the founder agreed to this story, and record how in consentVia. Returns the edition id and any consent warnings.',
       inputSchema: {
         editionId: z.string().optional().describe('Omit to create a new edition.'),
         label: z.string().optional().describe('Free-text name, e.g. "October", "Week 40", "Summer special".'),
@@ -37,14 +37,15 @@ export function registerEditionTools(server: McpServer, env: Env, bundledShell: 
         windowEnd: z.string().optional().describe('Last day of events covered, YYYY-MM-DD.'),
         subject: z.string().optional().describe('Email subject line.'),
         previewText: z.string().optional().describe('Inbox preview text (max 200 characters).'),
-        bodyHtml: z.string().optional().describe('The newsletter content as an inline-styled HTML fragment.'),
+        bodyHtml: z.string().optional().describe('The newsletter content as an inline-styled HTML fragment, in the Volta dark brand style (see the Skill building blocks).'),
+        allowOffBrand: z.boolean().optional().describe('Leave unset. Set true ONLY when the user explicitly asked for a look outside the Volta dark brand style; otherwise a body with off-brand colours is refused.'),
         featured: z.array(featuredSchema).optional().describe('All founder stories in this edition (replaces the previous list).'),
       },
     },
     async (args) => {
       try {
         const r = await saveEdition(env, args, user());
-        logEvent('tool.save_edition', { user: user(), editionId: r.edition.id, created: r.created, featured: r.edition.featured.length });
+        logEvent('tool.save_edition', { user: user(), editionId: r.edition.id, created: r.created, featured: r.edition.featured.length, offBrandAllowed: args.allowOffBrand ? true : undefined });
         return textResult(
           JSON.stringify({
             editionId: r.edition.id,

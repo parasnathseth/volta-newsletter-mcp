@@ -9,7 +9,7 @@ import { unsafeHtmlProblems } from '../src/lib/htmlSafety.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const shell = readFileSync(join(here, '..', 'template', 'shell.html'), 'utf8');
-const skill = readFileSync(join(here, '..', 'skill', 'volta-newsletter', 'SKILL.md'), 'utf8');
+const skill = readFileSync(join(here, '..', 'skill', 'volta-newsletter', 'brand-and-html.md'), 'utf8');
 
 const bad = (html, mode = 'body') => unsafeHtmlProblems(html, mode).length > 0;
 
