@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { consentProblems, EditionError, getEdition, listEditions, saveEdition } from '../lib/edition.ts';
 import { logEvent } from '../lib/log.ts';
 import { textResult } from '../lib/mcp.ts';
+import { checkRateLimit, RateLimitError } from '../lib/rateLimit.ts';
 import { renderEdition } from '../lib/render.ts';
 import { getTemplateState } from '../lib/template.ts';
 import type { Env } from '../types.ts';
@@ -44,6 +45,7 @@ export function registerEditionTools(server: McpServer, env: Env, bundledShell: 
     },
     async (args) => {
       try {
+        await checkRateLimit(env, 'save_edition', user());
         const r = await saveEdition(env, args, user());
         logEvent('tool.save_edition', { user: user(), editionId: r.edition.id, created: r.created, featured: r.edition.featured.length, offBrandAllowed: args.allowOffBrand ? true : undefined });
         return textResult(
@@ -61,7 +63,7 @@ export function registerEditionTools(server: McpServer, env: Env, bundledShell: 
         );
       } catch (err) {
         logEvent('tool.save_edition.error', { user: user(), message: (err as Error).message });
-        return fail(errText('Could not save the edition', err));
+        return fail(err instanceof RateLimitError ? err.message : errText('Could not save the edition', err));
       }
     },
   );

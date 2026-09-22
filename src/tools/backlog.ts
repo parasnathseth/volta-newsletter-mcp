@@ -28,6 +28,7 @@ export function registerBacklogTools(server: McpServer, env: Env, userEmail: () 
     },
     async (args) => {
       try {
+        await checkRateLimit(env, 'backlog_add', user());
         const e = await addEntry(env, args, user());
         logEvent('tool.backlog_add', { user: user(), id: e.id });
         return textResult(JSON.stringify({ added: e }));
@@ -79,6 +80,7 @@ export function registerBacklogTools(server: McpServer, env: Env, userEmail: () 
     },
     async (args) => {
       try {
+        await checkRateLimit(env, 'backlog_update', user());
         const e = await updateEntry(env, args, user());
         logEvent('tool.backlog_update', { user: user(), id: e.id });
         return textResult(JSON.stringify({ updated: e }));

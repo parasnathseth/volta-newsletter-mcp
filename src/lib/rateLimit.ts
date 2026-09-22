@@ -23,6 +23,12 @@ export const LIMITS: Record<string, Limit> = {
   delete_edition: { max: 20, windowSeconds: 3600 },
   create_draft: { max: 30, windowSeconds: 3600 },
   backlog_remove: { max: 30, windowSeconds: 3600 },
+  // Added for the Monday review: nothing here is destructive, but an unattended run (a manipulated
+  // search result, or a stuck loop) can now write to KV with no one watching in real time. Caps are
+  // generous for a real editing session or a real review run, tight for a loop.
+  backlog_add: { max: 30, windowSeconds: 3600 },
+  backlog_update: { max: 30, windowSeconds: 3600 },
+  save_edition: { max: 60, windowSeconds: 3600 },
 };
 
 export class RateLimitError extends Error {

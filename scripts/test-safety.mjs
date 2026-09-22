@@ -46,8 +46,16 @@ test('rate limit: unlimited actions pass, and counters expire on their own (KV n
 });
 
 test('rate limit: every risky tool has a limit configured', () => {
-  for (const action of ['send_test', 'update_template', 'restore_template', 'delete_draft', 'delete_edition', 'create_draft', 'backlog_remove']) {
+  for (const action of ['send_test', 'update_template', 'restore_template', 'delete_draft', 'delete_edition', 'create_draft', 'backlog_remove', 'save_edition', 'backlog_add', 'backlog_update']) {
     assert.ok(LIMITS[action]?.max > 0, action);
+  }
+});
+
+test('rate limit: save_edition and backlog_add/update are capped too, so an unattended run (a manipulated search result, a stuck loop) cannot write to KV without limit', async () => {
+  const env = { OAUTH_KV: new FakeKV() };
+  for (const action of ['save_edition', 'backlog_add', 'backlog_update']) {
+    for (let i = 0; i < LIMITS[action].max; i++) await checkRateLimit(env, action, 'scheduled@voltaeffect.com');
+    await assert.rejects(checkRateLimit(env, action, 'scheduled@voltaeffect.com'), (e) => e instanceof RateLimitError, action);
   }
 });
 
