@@ -8,14 +8,15 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
-    "test": "node --test scripts/test-events.mjs scripts/test-template.mjs scripts/test-edition.mjs scripts/test-campaign.mjs scripts/test-analytics.mjs scripts/test-brand.mjs scripts/test-backlog.mjs scripts/test-auth.mjs scripts/test-html-safety.mjs scripts/test-safety.mjs",
+    "test": "node --test scripts/test-events.mjs scripts/test-template.mjs scripts/test-edition.mjs scripts/test-campaign.mjs scripts/test-analytics.mjs scripts/test-brand.mjs scripts/test-backlog.mjs scripts/test-auth.mjs scripts/test-html-safety.mjs scripts/test-safety.mjs scripts/test-injection.mjs scripts/test-namematch.mjs scripts/test-vet.mjs scripts/test-donotfeature.mjs scripts/test-idea.mjs",
     "smoke": "node --env-file=.dev.vars scripts/smoke-mailchimp.mjs",
     "live:drafts": "node --env-file=.dev.vars scripts/live-draft-lifecycle.mjs",
     "e2e": "node --env-file=.dev.vars scripts/e2e-workflows.mjs",
     "handoff:check": "node scripts/handoff-check.mjs",
     "revoke:sessions": "node scripts/revoke-sessions.mjs",
     "backup": "node scripts/backup-kv.mjs",
-    "skill:zip": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-skill-zip.ps1"
+    "skill:zip": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-skill-zip.ps1",
+    "demo:vet": "node scripts/demo-vet.mjs"
   },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "0.10.3",

@@ -4,10 +4,13 @@ import { logEvent } from './lib/log.ts';
 import { textResult } from './lib/mcp.ts';
 import { registerAnalyticsTools } from './tools/analytics.ts';
 import { registerBacklogTools } from './tools/backlog.ts';
+import { registerDoNotFeatureTools } from './tools/donotfeature.ts';
 import { registerEditionTools } from './tools/edition.ts';
 import { registerEventTools } from './tools/events.ts';
+import { registerIdeaTools } from './tools/idea.ts';
 import { registerMailchimpTools } from './tools/mailchimp.ts';
 import { registerTemplateTools } from './tools/template.ts';
+import { registerVetTools } from './tools/vet.ts';
 import type { Env, UserProps } from './types.ts';
 
 /**
@@ -47,6 +50,9 @@ export function createServer(env: Env, bundledShell: string, currentUser: () => 
   registerMailchimpTools(server, env, bundledShell, userEmail);
   registerBacklogTools(server, env, userEmail);
   registerAnalyticsTools(server, env, userEmail);
+  registerVetTools(server, env, userEmail);
+  registerDoNotFeatureTools(server, env, userEmail);
+  registerIdeaTools(server, env, userEmail);
 
   return server;
 }

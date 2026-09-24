@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
-import { consentProblems, EditionError, getEdition, listEditions, saveEdition } from '../lib/edition.ts';
+import { consentProblems, EditionError, getEdition, listEditions, saveEdition, sourceProblems } from '../lib/edition.ts';
 import { logEvent } from '../lib/log.ts';
 import { textResult } from '../lib/mcp.ts';
 import { checkRateLimit, RateLimitError } from '../lib/rateLimit.ts';
@@ -11,6 +11,12 @@ import type { Env } from '../types.ts';
 const fail = (message: string) => ({ ...textResult(message), isError: true });
 const errText = (prefix: string, err: unknown) => (err instanceof EditionError ? (err as Error).message : `${prefix}: ${(err as Error).message}`);
 
+// The reminder shown after a save: what is still missing before create_draft will work.
+const missingNote = (consentWarnings: string[], sourceWarnings: string[]) => {
+  const missing = [consentWarnings.length ? 'confirmed consent' : '', sourceWarnings.length ? 'a source link' : ''].filter(Boolean);
+  return missing.length ? `A Mailchimp draft cannot be created until every featured story has ${missing.join(' and ')}.` : undefined;
+};
+
 const featuredSchema = z.object({
   id: z.string().optional().describe('Existing story id to update; omit to add a new story (an id is assigned).'),
   founder: z.string().describe('Founder or person featured.'),
@@ -20,6 +26,11 @@ const featuredSchema = z.object({
   consentVia: z.string().nullable().optional().describe('How consent was given (email, Slack, in person, ...). Required when consent is "confirmed".'),
   consentNote: z.string().optional().describe('Optional note, e.g. what exactly was agreed.'),
   outcome: z.string().nullable().optional().describe('Filled in later from a founder check-in (did the feature help?).'),
+  sourceUrl: z
+    .string()
+    .nullable()
+    .optional()
+    .describe('REQUIRED for every featured story before a draft can be made: an http(s) link to where the story\'s facts come from (an article, the founder\'s own post, their site). Never invent one. Changing the story\'s topic or founder clears it, so send it again then.'),
 });
 
 export function registerEditionTools(server: McpServer, env: Env, bundledShell: string, userEmail: () => string | undefined): void {
@@ -29,7 +40,7 @@ export function registerEditionTools(server: McpServer, env: Env, bundledShell: 
     'save_edition',
     {
       description:
-        'Saves the newsletter edition being worked on so any later chat can pick it up. With no editionId it creates a new edition; with an editionId it updates only the fields you pass (others are kept). bodyHtml is only the newsletter content (an HTML fragment with inline styles) that goes inside the template\'s body region: no <html>/<body>, no scripts, no mc:edit. It must stay in Volta\'s dark brand style: the email is dark, so use only the brand colours (backgrounds #0A0A0A, #0A0A0C, #14101F, #232327, #332A55; text #F5F5F7, #D9D9DE, #A3A3AD, #FFFFFF; accents #05D9E7, #6101FF, #FF6D6D, #FFBB0E) and the Skill\'s building blocks; light backgrounds, dark text and other colours are refused unless the user explicitly asked for a different look (then set allowOffBrand true). Event details in it must come verbatim from get_upcoming_events. List every founder story in `featured` with its own consent status; passing `featured` replaces the whole list. Never set consent to "confirmed" unless the user has told you the founder agreed to this story, and record how in consentVia. Returns the edition id and any consent warnings.',
+        'Saves the newsletter edition being worked on so any later chat can pick it up. With no editionId it creates a new edition; with an editionId it updates only the fields you pass (others are kept). bodyHtml is only the newsletter content (an HTML fragment with inline styles) that goes inside the template\'s body region: no <html>/<body>, no scripts, no mc:edit. It must stay in Volta\'s dark brand style: the email is dark, so use only the brand colours (backgrounds #0A0A0A, #0A0A0C, #14101F, #232327, #332A55; text #F5F5F7, #D9D9DE, #A3A3AD, #FFFFFF; accents #05D9E7, #6101FF, #FF6D6D, #FFBB0E) and the Skill\'s building blocks; light backgrounds, dark text and other colours are refused unless the user explicitly asked for a different look (then set allowOffBrand true). Event details in it must come verbatim from get_upcoming_events. List every founder story in `featured` with its own consent status; passing `featured` replaces the whole list. Never set consent to "confirmed" unless the user has told you the founder agreed to this story, and record how in consentVia. Give every featured story a sourceUrl (a link to where its facts come from); a draft cannot be created without one. Anyone on the do-not-feature list (see do_not_feature_list) cannot be named in a featured story or in the body: the save is refused and nothing is stored, whatever consent says. Returns the edition id and any consent and source-link warnings.',
       inputSchema: {
         editionId: z.string().optional().describe('Omit to create a new edition.'),
         label: z.string().optional().describe('Free-text name, e.g. "October", "Week 40", "Summer special".'),
@@ -54,11 +65,12 @@ export function registerEditionTools(server: McpServer, env: Env, bundledShell: 
             created: r.created,
             label: r.edition.label,
             status: r.edition.status,
-            featured: r.edition.featured.map((f) => ({ id: f.id, founder: f.founder, topic: f.topic, consent: f.consent })),
+            featured: r.edition.featured.map((f) => ({ id: f.id, founder: f.founder, topic: f.topic, consent: f.consent, sourceUrl: f.sourceUrl ?? null })),
             consentWarnings: r.consentWarnings,
+            sourceWarnings: r.sourceWarnings,
             consentReset: r.consentResets.length ? r.consentResets : undefined,
             mailchimpDraftWarnings: r.draftWarnings.length ? r.draftWarnings : undefined,
-            note: r.consentWarnings.length ? 'A Mailchimp draft cannot be created until every featured story has confirmed consent.' : undefined,
+            note: missingNote(r.consentWarnings, r.sourceWarnings),
           }),
         );
       } catch (err) {
@@ -78,7 +90,9 @@ export function registerEditionTools(server: McpServer, env: Env, bundledShell: 
       try {
         const e = await getEdition(env, id);
         logEvent('tool.get_edition', { user: user(), editionId: e.id });
-        return textResult(JSON.stringify({ ...e, consentWarnings: consentProblems(e) }));
+        // Stories saved before source links existed have no sourceUrl at all; show them as null so it is clear a link is missing.
+        const featured = e.featured.map((f) => ({ ...f, sourceUrl: f.sourceUrl ?? null }));
+        return textResult(JSON.stringify({ ...e, featured, consentWarnings: consentProblems(e), sourceWarnings: sourceProblems(e) }));
       } catch (err) {
         return fail(errText('Could not load the edition', err));
       }
@@ -122,6 +136,7 @@ export function registerEditionTools(server: McpServer, env: Env, bundledShell: 
             subject: edition.subject,
             previewText: edition.previewText,
             consentWarnings: problems,
+            sourceWarnings: sourceProblems(edition),
             html: renderEdition(template.html, edition),
           }),
         );

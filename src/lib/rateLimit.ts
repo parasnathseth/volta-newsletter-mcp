@@ -29,6 +29,11 @@ export const LIMITS: Record<string, Limit> = {
   backlog_add: { max: 30, windowSeconds: 3600 },
   backlog_update: { max: 30, windowSeconds: 3600 },
   save_edition: { max: 60, windowSeconds: 3600 },
+  // v4 vetting and ideas: vet_updates is read-only but a loop could spam KV reads; the rest write to KV.
+  vet_updates: { max: 60, windowSeconds: 3600 },
+  do_not_feature_add: { max: 30, windowSeconds: 3600 },
+  do_not_feature_remove: { max: 30, windowSeconds: 3600 },
+  idea_record: { max: 30, windowSeconds: 3600 },
 };
 
 export class RateLimitError extends Error {

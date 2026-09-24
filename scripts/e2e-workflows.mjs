@@ -73,8 +73,8 @@ try {
   check('initialize succeeds', init.status === 200 && init.body.result?.serverInfo?.name === 'volta-newsletter');
   const list = await rpc(liveHandler, liveEnv, 'tools/list', {});
   const tools = list.body.result.tools;
-  const expected = ['ping', 'whoami', 'get_upcoming_events', 'get_template', 'update_template', 'list_template_versions', 'restore_template', 'save_edition', 'get_edition', 'list_editions', 'render_edition', 'create_draft', 'send_test', 'get_report', 'list_past_campaigns', 'compare_campaigns', 'get_audience_stats', 'delete_draft', 'delete_edition', 'backlog_add', 'backlog_list', 'backlog_update', 'backlog_remove'];
-  check('exactly the expected 23 tools are exposed', tools.length === expected.length && expected.every((n) => tools.some((t) => t.name === n)), tools.map((t) => t.name).filter((n) => !expected.includes(n)).join(',') || `${tools.length} tools`);
+  const expected = ['ping', 'whoami', 'get_upcoming_events', 'get_template', 'update_template', 'list_template_versions', 'restore_template', 'save_edition', 'get_edition', 'list_editions', 'render_edition', 'create_draft', 'send_test', 'get_report', 'list_past_campaigns', 'compare_campaigns', 'get_audience_stats', 'delete_draft', 'delete_edition', 'backlog_add', 'backlog_list', 'backlog_update', 'backlog_remove', 'vet_updates', 'do_not_feature_add', 'do_not_feature_list', 'do_not_feature_remove', 'idea_check', 'idea_record', 'idea_list'];
+  check('exactly the expected 30 tools are exposed', tools.length === expected.length && expected.every((n) => tools.some((t) => t.name === n)), tools.map((t) => t.name).filter((n) => !expected.includes(n)).join(',') || `${tools.length} tools`);
   check('every tool has a real description and an input schema', tools.every((t) => (t.description ?? '').length > 30 && t.inputSchema?.type === 'object'), tools.filter((t) => (t.description ?? '').length <= 30).map((t) => t.name).join(','));
   check('whoami reports the signed-in user', (await tool('whoami')).text.includes('e2e@voltaeffect.com'));
 
@@ -156,7 +156,7 @@ try {
   check('a rejected consent update changes nothing', (await tool('get_edition', { id: editionId })).json?.featured?.[0]?.consentVia === 'email');
   const topicChange = await tool('save_edition', { editionId, featured: [{ id: 'f1', founder: 'Jane Doe', company: 'Acme AI', topic: 'Hiring their first engineer' }] });
   check('changing a story\'s topic resets its consent and says so', topicChange.json?.consentReset?.length === 1 && topicChange.json.featured[0].consent === 'none' && topicChange.json.consentWarnings.length === 1, topicChange.json?.consentReset?.[0]);
-  const reconfirm = await tool('save_edition', { editionId, featured: [{ id: 'f1', founder: 'Jane Doe', company: 'Acme AI', topic: 'Hiring their first engineer', consent: 'confirmed', consentVia: 'email' }] });
+  const reconfirm = await tool('save_edition', { editionId, featured: [{ id: 'f1', founder: 'Jane Doe', company: 'Acme AI', topic: 'Hiring their first engineer', consent: 'confirmed', consentVia: 'email', sourceUrl: 'https://example.com/e2e-source' }] });
   check('consent for the new topic can be recorded explicitly', !reconfirm.error && reconfirm.json?.consentWarnings?.length === 0);
 
   section('Mailchimp draft workflow (real sandbox)');
@@ -209,7 +209,7 @@ try {
   check('deleting again is a clear error', (await tool('delete_draft', { editionId })).error);
 
   section('Deleting a saved edition');
-  const junk = await tool('save_edition', { label: 'E2E throwaway', subject: 'Throwaway', previewText: 'Throwaway', bodyHtml: '<p>Throwaway</p>', featured: [{ founder: 'Temp Person', topic: 'Temp', consent: 'confirmed', consentVia: 'e2e' }] });
+  const junk = await tool('save_edition', { label: 'E2E throwaway', subject: 'Throwaway', previewText: 'Throwaway', bodyHtml: '<p>Throwaway</p>', featured: [{ founder: 'Temp Person', topic: 'Temp', consent: 'confirmed', consentVia: 'e2e', sourceUrl: 'https://example.com/e2e-source' }] });
   const junkId = junk.json?.editionId;
   check('delete_edition without an editionId is rejected', (await tool('delete_edition', {})).error);
   const junkDraft = await tool('create_draft', { editionId: junkId });

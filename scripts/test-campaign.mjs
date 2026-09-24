@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createDraft, sendTest, getReport, listPastCampaigns, checkTestRecipients, deleteDraft, deleteEdition, ConsentError } from '../src/lib/campaign.ts';
 import { saveEdition, getEdition, listEditions, EditionError } from '../src/lib/edition.ts';
+import { addDoNotFeature, removeDoNotFeature } from '../src/lib/donotfeature.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const shell = readFileSync(join(here, '..', 'template', 'shell.html'), 'utf8');
@@ -85,7 +86,8 @@ async function makeEnv(extra = {}) {
 
 const okEdition = async (env, over = {}) =>
   (await saveEdition(env, { label: 'October', subject: 'Volta in October', previewText: 'What is new', bodyHtml: '<p>Hi</p>', ...over }, 'u')).edition;
-const confirmed = { featured: [{ founder: 'Jane', company: 'Acme', topic: 'Seed', consent: 'confirmed', consentVia: 'email' }] };
+// Every featured story needs consent AND a source link before a draft can be made.
+const confirmed = { featured: [{ founder: 'Jane', company: 'Acme', topic: 'Seed', consent: 'confirmed', consentVia: 'email', sourceUrl: 'https://example.com/jane-seed' }] };
 
 test('create_draft is blocked by unconfirmed consent and touches nothing in Mailchimp', async () => {
   const { calls } = installMailchimp();
@@ -94,6 +96,64 @@ test('create_draft is blocked by unconfirmed consent and touches nothing in Mail
   await assert.rejects(createDraft(env, shell, { editionId: e.id, by: 'u' }), (err) => err instanceof ConsentError && /Jane/.test(err.message) && /not confirmed/.test(err.message));
   assert.equal(writes(calls).length, 0);
   assert.equal(calls.length, 0, 'not even a read: the gate runs first');
+});
+
+test('create_draft refuses a story with no source link, even with confirmed consent, and touches nothing in Mailchimp', async () => {
+  const { calls } = installMailchimp();
+  const env = await makeEnv();
+  const e = await okEdition(env, { featured: [{ founder: 'Jane', company: 'Acme', topic: 'Seed', consent: 'confirmed', consentVia: 'email' }] });
+  await assert.rejects(createDraft(env, shell, { editionId: e.id, by: 'u' }), (err) => err instanceof EditionError && /no source link/.test(err.message) && /"Seed" \(Jane, Acme\)/.test(err.message) && /sourceUrl/.test(err.message));
+  assert.equal(calls.length, 0, 'not even a read: the gate runs first');
+
+  // Adding the link is all it takes.
+  await saveEdition(env, { editionId: e.id, featured: [{ id: 'f1', founder: 'Jane', company: 'Acme', topic: 'Seed', sourceUrl: 'https://example.com/jane-seed' }] }, 'u');
+  const r = await createDraft(env, shell, { editionId: e.id, by: 'u' });
+  assert.equal(r.campaignId, 'C1');
+});
+
+test('create_draft: consent is reported before the missing source link (existing consent message unchanged)', async () => {
+  const { calls } = installMailchimp();
+  const env = await makeEnv();
+  const e = await okEdition(env, { featured: [{ founder: 'Jane', company: 'Acme', topic: 'Seed' }] }); // no consent, no link
+  await assert.rejects(createDraft(env, shell, { editionId: e.id, by: 'u' }), ConsentError);
+  assert.equal(calls.length, 0);
+});
+
+test('create_draft refuses when a featured story names someone on the do-not-feature list, even with confirmed consent, and touches nothing in Mailchimp', async () => {
+  const { calls } = installMailchimp();
+  const env = await makeEnv();
+  // The edition was saved BEFORE the person asked to be left out, so save_edition did not stop it.
+  const e = await okEdition(env, { featured: [{ founder: 'Sam Lee', company: 'Tidewater Maps', topic: 'New charts', consent: 'confirmed', consentVia: 'email', sourceUrl: 'https://example.com/tidewater' }] });
+  await addDoNotFeature(env, { name: 'Tidewater Maps', note: 'asked by email on Sept 10' }, 'bader@voltaeffect.com');
+  await assert.rejects(
+    createDraft(env, shell, { editionId: e.id, by: 'u' }),
+    (err) => err instanceof EditionError && /do-not-feature list blocks/.test(err.message) && /Tidewater Maps asked not to be featured/.test(err.message) && /note: asked by email on Sept 10/.test(err.message) && /"New charts" \(Sam Lee, Tidewater Maps\)/.test(err.message),
+  );
+  assert.equal(calls.length, 0, 'not even a read: the gate runs first');
+  assert.equal((await getEdition(env, e.id)).campaignId, null);
+
+  // Once the name is taken off the list, the same edition goes through.
+  await removeDoNotFeature(env, 'Tidewater Maps', 'u');
+  assert.equal((await createDraft(env, shell, { editionId: e.id, by: 'u' })).campaignId, 'C1');
+});
+
+test('create_draft refuses when the body names someone on the do-not-feature list, and dry-run is blocked too', async () => {
+  const { calls } = installMailchimp();
+  const env = await makeEnv({ MAILCHIMP_DRY_RUN: 'true' });
+  const e = await okEdition(env, { bodyHtml: '<p>Great news for Tidewater Maps this month.</p>' });
+  await addDoNotFeature(env, { name: 'tidewater maps' }, 'u');
+  await assert.rejects(createDraft(env, shell, { editionId: e.id, by: 'u' }), (err) => err instanceof EditionError && /The newsletter body names them/.test(err.message));
+  assert.equal(calls.length, 0);
+});
+
+test('create_draft: the do-not-feature gate works when KV listings are stale (the list is read by exact key)', async () => {
+  const { calls } = installMailchimp();
+  const env = await makeEnv();
+  const e = await okEdition(env, { bodyHtml: '<p>Great news for Tidewater Maps.</p>' });
+  env.OAUTH_KV.list = async () => ({ keys: [], list_complete: true });
+  await addDoNotFeature(env, { name: 'Tidewater Maps' }, 'u');
+  await assert.rejects(createDraft(env, shell, { editionId: e.id, by: 'u' }), /do-not-feature list blocks/);
+  assert.equal(calls.length, 0);
 });
 
 test('create_draft needs subject, preview text and body', async () => {

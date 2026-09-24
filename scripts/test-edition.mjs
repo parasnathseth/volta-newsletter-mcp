@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { saveEdition, getEdition, listEditions, consentProblems, newEditionId, EditionError } from '../src/lib/edition.ts';
+import { saveEdition, getEdition, listEditions, consentProblems, sourceProblems, newEditionId, EditionError } from '../src/lib/edition.ts';
+import { addDoNotFeature, removeDoNotFeature } from '../src/lib/donotfeature.ts';
 import { replaceRegion, renderEdition } from '../src/lib/render.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -262,4 +263,174 @@ test('renderEdition inserts the body into the real shell and fills merge tags fo
   assert.ok(!html.includes('*|MC_PREVIEW_TEXT|*') && !html.includes('*|UNSUB|*') && !html.includes('*|REWARDS|*'));
   assert.ok(html.includes('Volta &middot; Halifax'), 'footer is intact');
   assert.ok(html.indexOf('HELLO-BODY') < html.indexOf('Volta &middot; Halifax'), 'body comes before the footer');
+});
+
+// ---------------------------------------------------------------- do-not-feature gate
+const listTidewater = (env) => addDoNotFeature(env, { name: 'Tidewater Maps', note: 'asked by email on Sept 10' }, 'bader@voltaeffect.com');
+const refused = (env, input, re) => assert.rejects(saveEdition(env, input, 'u'), (e) => e instanceof EditionError && re.test(e.message));
+const TIDEWATER_WHY = /Tidewater Maps asked not to be featured \(on the do-not-feature list since \d{4}-\d{2}-\d{2}; note: asked by email on Sept 10\)/;
+
+test('do-not-feature: save_edition refuses a featured story for someone on the list, says who and why, and saves nothing', async () => {
+  const env = makeEnv();
+  await listTidewater(env);
+  await refused(env, { label: 'Sept', featured: [story({ founder: 'Sam Lee', company: 'Tidewater Maps', topic: 'New charts' })] }, TIDEWATER_WHY);
+  await refused(env, { label: 'Sept', featured: [story({ founder: 'Tidewater Maps', company: '', topic: 'New charts' })] }, /The featured story "New charts" \(Tidewater Maps\) names them/);
+  await refused(env, { label: 'Sept', featured: [story({ topic: 'How tidewater maps got its first customer' })] }, TIDEWATER_WHY);
+  // The message tells Claude not to work around it.
+  await refused(env, { featured: [story({ company: 'TIDEWATER MAPS' })] }, /wins over any consent.*do not just reword.*Only the editor can change the list/s);
+  await assert.rejects(getEdition(env), /no editions/, 'nothing was stored by any refused save');
+  assert.deepEqual(await listEditions(env), []);
+});
+
+test('do-not-feature: the list wins over confirmed consent', async () => {
+  const env = makeEnv();
+  await listTidewater(env);
+  await refused(env, { featured: [story({ company: 'Tidewater Maps', consent: 'confirmed', consentVia: 'email' })] }, TIDEWATER_WHY);
+});
+
+test('do-not-feature: save_edition refuses a body that names someone on the list', async () => {
+  const env = makeEnv();
+  await listTidewater(env);
+  await refused(env, { bodyHtml: '<p>Congratulations to Tidewater Maps on their launch!</p>' }, /Tidewater Maps asked not to be featured.*The newsletter body names them/s);
+  await refused(env, { bodyHtml: '<p>Congrats <b>Tidewater</b>&nbsp;<i>Maps</i></p>' }, /The newsletter body names them/);
+  await assert.rejects(getEdition(env), /no editions/);
+  // Tag and attribute text is not "naming" them.
+  await saveEdition(env, { bodyHtml: '<a href="https://x.test/tidewater-maps">Read more</a>' }, 'u');
+});
+
+test('do-not-feature: refusing a save leaves the existing edition exactly as it was', async () => {
+  const env = makeEnv();
+  const { edition } = await saveEdition(env, { label: 'Sept', subject: 'Hello', bodyHtml: '<p>Fine</p>', featured: [story()] }, 'u');
+  await listTidewater(env);
+  await refused(env, { editionId: edition.id, subject: 'Changed', featured: [story({ id: 'f1', company: 'Tidewater Maps' })] }, TIDEWATER_WHY);
+  const after = await getEdition(env, edition.id);
+  assert.equal(after.subject, 'Hello');
+  assert.equal(after.featured[0].company, 'Acme AI');
+});
+
+test('do-not-feature: other stories and bodies save normally, and each part can be fixed on its own', async () => {
+  const env = makeEnv();
+  await listTidewater(env);
+  const ok = await saveEdition(env, { label: 'Sept', bodyHtml: '<p>News from Volta</p>', featured: [story()] }, 'u');
+  assert.equal(ok.edition.featured.length, 1);
+
+  // An edition that already names them (added to the list later) can be repaired one part at a time.
+  const kv = env.OAUTH_KV;
+  const raw = JSON.parse(kv.store.get(`edition:${ok.edition.id}`).value);
+  raw.bodyHtml = '<p>Tidewater Maps is great</p>';
+  raw.featured[0].company = 'Tidewater Maps';
+  await kv.put(`edition:${ok.edition.id}`, JSON.stringify(raw));
+  const featuredFixed = await saveEdition(env, { editionId: ok.edition.id, featured: [story({ id: 'f1' })] }, 'u');
+  assert.equal(featuredFixed.edition.featured[0].company, 'Acme AI');
+  const subjectOnly = await saveEdition(env, { editionId: ok.edition.id, subject: 'Still allowed' }, 'u'); // touches neither part
+  assert.equal(subjectOnly.edition.subject, 'Still allowed');
+  const bodyFixed = await saveEdition(env, { editionId: ok.edition.id, bodyHtml: '<p>All clear</p>' }, 'u');
+  assert.equal(bodyFixed.edition.bodyHtml, '<p>All clear</p>');
+});
+
+test('do-not-feature: taking a name off the list lets the save through again', async () => {
+  const env = makeEnv();
+  await listTidewater(env);
+  await refused(env, { featured: [story({ company: 'Tidewater Maps' })] }, TIDEWATER_WHY);
+  await removeDoNotFeature(env, 'tidewater maps', 'u');
+  const r = await saveEdition(env, { featured: [story({ company: 'Tidewater Maps' })] }, 'u');
+  assert.equal(r.edition.featured[0].company, 'Tidewater Maps');
+});
+
+test('REGRESSION: the do-not-feature gate works even when KV listings are stale (the list is read by exact key)', async () => {
+  const env = { OAUTH_KV: new StaleListKV() };
+  await listTidewater(env);
+  await refused(env, { featured: [story({ company: 'Tidewater Maps' })] }, TIDEWATER_WHY);
+  await refused(env, { bodyHtml: '<p>Tidewater Maps</p>' }, /body names them/);
+});
+
+// ---------------------------------------------------------------- source links
+test('source links: stored trimmed, and every story without one is a warning', async () => {
+  const env = makeEnv();
+  const r = await saveEdition(env, { label: 'x', featured: [story({ sourceUrl: '  https://example.com/jane-seed  ' }), story({ founder: 'Sam', topic: 'Launch' })] }, 'u');
+  assert.equal(r.edition.featured[0].sourceUrl, 'https://example.com/jane-seed');
+  assert.equal(r.edition.featured[1].sourceUrl, null);
+  assert.equal(r.sourceWarnings.length, 1);
+  assert.match(r.sourceWarnings[0], /"Launch" \(Sam, Acme AI\) has no source link/);
+  assert.deepEqual(sourceProblems(r.edition), r.sourceWarnings);
+  assert.deepEqual(sourceProblems({ featured: [] }), []);
+  assert.deepEqual((await saveEdition(makeEnv(), { label: 'none' }, 'u')).sourceWarnings, []);
+});
+
+test('source links: only http(s) web addresses are accepted, and a refused save stores nothing', async () => {
+  const env = makeEnv();
+  const tooLong = 'https://example.com/' + 'x'.repeat(500);
+  for (const url of ['javascript:alert(1)', 'ftp://example.com/x', 'example.com/no-scheme', 'https://exa mple.com', tooLong, 'not a link']) {
+    await assert.rejects(saveEdition(env, { featured: [story({ sourceUrl: url })] }, 'u'), (e) => e instanceof EditionError && /source link.*http:\/\/ or https:\/\//.test(e.message), url.slice(0, 30));
+  }
+  await assert.rejects(getEdition(env), /no editions/);
+  await saveEdition(env, { featured: [story({ sourceUrl: 'http://example.com/ok' })] }, 'u'); // plain http is allowed
+});
+
+test('source links: kept when the story is unchanged, cleared when its topic or founder changes, and can be set or cleared explicitly', async () => {
+  const env = makeEnv();
+  const { edition } = await saveEdition(env, { label: 'x', featured: [story({ sourceUrl: 'https://example.com/a' })] }, 'u');
+
+  // Re-sending the story without a link, or with only case/spacing changes, keeps the link.
+  const same = await saveEdition(env, { editionId: edition.id, featured: [story({ id: 'f1', topic: '  SEED   round ' })] }, 'u');
+  assert.equal(same.edition.featured[0].sourceUrl, 'https://example.com/a');
+  const otherEdit = await saveEdition(env, { editionId: edition.id, featured: [story({ id: 'f1', company: 'Acme AI Inc.' })] }, 'u');
+  assert.equal(otherEdit.edition.featured[0].sourceUrl, 'https://example.com/a');
+  const untouched = await saveEdition(env, { editionId: edition.id, subject: 'Only the subject' }, 'u');
+  assert.equal(untouched.edition.featured[0].sourceUrl, 'https://example.com/a');
+
+  // A different topic means the old link no longer proves the story: cleared, and it shows as a warning.
+  const topic = await saveEdition(env, { editionId: edition.id, featured: [story({ id: 'f1', topic: 'Hiring their first engineer' })] }, 'u');
+  assert.equal(topic.edition.featured[0].sourceUrl, null);
+  assert.equal(topic.sourceWarnings.length, 1);
+
+  // A different founder on the same id is a different story too.
+  await saveEdition(env, { editionId: edition.id, featured: [story({ id: 'f1', sourceUrl: 'https://example.com/b' })] }, 'u');
+  const founder = await saveEdition(env, { editionId: edition.id, featured: [{ id: 'f1', founder: 'Different Person', topic: 'Seed round' }] }, 'u');
+  assert.equal(founder.edition.featured[0].sourceUrl, null);
+
+  // Giving a link with the new topic is honoured; null or a blank string clears it.
+  const explicit = await saveEdition(env, { editionId: edition.id, featured: [story({ id: 'f1', topic: 'Opening an office', sourceUrl: 'https://example.com/c' })] }, 'u');
+  assert.equal(explicit.edition.featured[0].sourceUrl, 'https://example.com/c');
+  assert.equal(explicit.sourceWarnings.length, 0);
+  const cleared = await saveEdition(env, { editionId: edition.id, featured: [story({ id: 'f1', topic: 'Opening an office', sourceUrl: null })] }, 'u');
+  assert.equal(cleared.edition.featured[0].sourceUrl, null);
+  await saveEdition(env, { editionId: edition.id, featured: [story({ id: 'f1', topic: 'Opening an office', sourceUrl: 'https://example.com/d' })] }, 'u');
+  const blank = await saveEdition(env, { editionId: edition.id, featured: [story({ id: 'f1', topic: 'Opening an office', sourceUrl: '   ' })] }, 'u');
+  assert.equal(blank.edition.featured[0].sourceUrl, null);
+});
+
+test('source links: an id-less story never inherits another story\'s link', async () => {
+  const env = makeEnv();
+  const { edition } = await saveEdition(env, { label: 'x', featured: [story({ sourceUrl: 'https://example.com/a' })] }, 'u');
+  const r = await saveEdition(env, { editionId: edition.id, featured: [story()] }, 'u'); // same person, no id: a new story
+  assert.equal(r.edition.featured[0].sourceUrl, null);
+});
+
+test('source links: editions saved before the field existed still load, and read as having no link', async () => {
+  const kv = new FakeKV();
+  const env = { OAUTH_KV: kv };
+  const { edition } = await saveEdition(env, { label: 'old', featured: [story({ consent: 'confirmed', consentVia: 'email', sourceUrl: 'https://example.com/a' })] }, 'u');
+  const raw = JSON.parse(kv.store.get(`edition:${edition.id}`).value);
+  for (const f of raw.featured) delete f.sourceUrl; // what an older stored edition looks like
+  await kv.put(`edition:${edition.id}`, JSON.stringify(raw));
+
+  const loaded = await getEdition(env, edition.id);
+  assert.equal(loaded.featured[0].sourceUrl, undefined);
+  assert.equal(sourceProblems(loaded).length, 1);
+  assert.equal(consentProblems(loaded).length, 0, 'consent is untouched');
+
+  const resaved = await saveEdition(env, { editionId: edition.id, featured: [story({ id: 'f1' })] }, 'u'); // resent without a link
+  assert.equal(resaved.edition.featured[0].sourceUrl, null);
+  assert.equal(resaved.edition.featured[0].consent, 'confirmed');
+  const fixed = await saveEdition(env, { editionId: edition.id, featured: [story({ id: 'f1', sourceUrl: 'https://example.com/a' })] }, 'u');
+  assert.deepEqual(fixed.sourceWarnings, []);
+});
+
+test('source links do not change the list_editions summary', async () => {
+  const env = makeEnv();
+  await saveEdition(env, { label: 'A', featured: [story()] }, 'u');
+  const [summary] = await listEditions(env);
+  assert.deepEqual(Object.keys(summary).sort(), ['featuredCount', 'id', 'label', 'status', 'subject', 'unconfirmedConsent', 'updatedAt']);
+  assert.equal(summary.unconfirmedConsent, 1);
 });

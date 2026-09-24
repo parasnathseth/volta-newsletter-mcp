@@ -1,5 +1,6 @@
 import { campaignAdminUrl, isDryRun, mailchimp, MailchimpError, type MailchimpEnv } from './mailchimp.ts';
-import { clearDraft, consentProblems, EditionError, getEdition, markDrafted, removeEdition, type Edition, type EditionEnv } from './edition.ts';
+import { doNotFeatureProblems, getDoNotFeature } from './donotfeature.ts';
+import { clearDraft, consentProblems, EditionError, getEdition, markDrafted, removeEdition, sourceProblems, type Edition, type EditionEnv } from './edition.ts';
 import { getTemplateState, type TemplateEnv } from './template.ts';
 import { reportExtras, type ReportExtras } from './analytics.ts';
 
@@ -69,8 +70,20 @@ export async function createDraft(env: CampaignEnv, bundledShell: string, args: 
 
   const missing = missingFields(edition);
   if (missing.length) throw new EditionError(`The edition needs ${missing.join(', ')} before a draft can be created. Add them with save_edition.`);
+
+  // The gates run before anything is sent to Mailchimp. The do-not-feature list is checked
+  // first because it wins over consent: asking whether such a person agreed would be pointless.
+  // It checks the saved edition again, since the list may have changed after the edition was saved.
+  const blocked = doNotFeatureProblems(edition, await getDoNotFeature(env));
+  if (blocked.length) {
+    throw new EditionError(`No Mailchimp draft was created because the do-not-feature list blocks this edition:\n- ${blocked.join('\n- ')}\nThe list wins over any consent. Remove them from the featured stories and the body with save_edition, then try again. Only the editor can change the list.`);
+  }
   const consent = consentProblems(edition);
   if (consent.length) throw new ConsentError(consent);
+  const sources = sourceProblems(edition);
+  if (sources.length) {
+    throw new EditionError(`No Mailchimp draft was created because a featured story has no source link:\n- ${sources.join('\n- ')}\nAsk the user for the link (or find where the facts came from), then add it as sourceUrl on that story with save_edition.`);
+  }
 
   const template = await getTemplateState(env, bundledShell);
   const audience = await pickAudience(env);

@@ -1,4 +1,5 @@
 import { BRAND_SUMMARY, offBrandProblems } from './brand.ts';
+import { doNotFeatureProblems, getDoNotFeature } from './donotfeature.ts';
 import { unsafeHtmlProblems } from './htmlSafety.ts';
 
 // An "edition" is one newsletter being worked on: its body, subject and the
@@ -19,6 +20,9 @@ export interface Featured {
   consentNote: string;
   confirmedAt: string | null;
   outcome: string | null; // filled in later by a founder check-in
+  // Where the story's facts come from (an article, the founder's own post). Required before a
+  // draft can be made. Editions saved before this field existed have none: read it as null.
+  sourceUrl: string | null;
 }
 
 export interface Edition {
@@ -51,6 +55,7 @@ export interface FeaturedInput {
   consentVia?: string | null;
   consentNote?: string;
   outcome?: string | null;
+  sourceUrl?: string | null;
 }
 
 export interface EditionInput {
@@ -113,6 +118,23 @@ export function consentProblems(edition: Pick<Edition, 'featured'>): string[] {
     .map((f) => `Consent for "${f.topic}" (${f.founder}${f.company ? `, ${f.company}` : ''}) is "${f.consent}", not confirmed.`);
 }
 
+/** Problems that must block creating a Mailchimp draft: every featured story needs a source link. */
+export function sourceProblems(edition: Pick<Edition, 'featured'>): string[] {
+  return edition.featured
+    .filter((f) => !f.sourceUrl) // also true for stories saved before the field existed
+    .map((f) => `The story "${f.topic}" (${f.founder}${f.company ? `, ${f.company}` : ''}) has no source link. Every featured story needs a link to where its facts come from, such as an article or the founder's own post.`);
+}
+
+// Only plain web addresses are kept, so something like "javascript:..." can never be stored.
+function cleanSourceUrl(raw: string | null, founder: string, topic: string): string | null {
+  const url = raw?.trim();
+  if (!url) return null; // null or blank means "no source link"
+  if (url.length > 500 || !/^https?:\/\/\S+$/i.test(url)) {
+    throw new EditionError(`The source link for "${topic}" (${founder}) must be a web address starting with http:// or https://.`);
+  }
+  return url;
+}
+
 const same = (a: string, b: string) => a.trim().toLowerCase().replace(/\s+/g, ' ') === b.trim().toLowerCase().replace(/\s+/g, ' ');
 
 // Consent is for one specific story: one person and one topic. If either changes for
@@ -161,6 +183,9 @@ function normalizeFeatured(input: FeaturedInput[], previous: Featured[], nowIso:
       consentNote: f.consentNote?.trim() ?? (storyChanged ? '' : prev?.consentNote ?? ''),
       confirmedAt: consent === 'confirmed' ? (prev?.consent === 'confirmed' && prev.confirmedAt && !storyChanged ? prev.confirmedAt : nowIso) : null,
       outcome: f.outcome === undefined ? (storyChanged ? null : prev?.outcome ?? null) : f.outcome,
+      // Like consent, a source link belongs to one story: if the story changed, the old link no
+      // longer proves it, so it is cleared unless the caller gives a new one.
+      sourceUrl: f.sourceUrl === undefined ? (storyChanged ? null : (prev?.sourceUrl ?? null)) : cleanSourceUrl(f.sourceUrl, founder, topic),
     };
   });
 }
@@ -182,7 +207,7 @@ export async function saveEdition(
   env: EditionEnv,
   input: EditionInput,
   by: string,
-): Promise<{ edition: Edition; created: boolean; consentWarnings: string[]; draftWarnings: string[]; consentResets: string[] }> {
+): Promise<{ edition: Edition; created: boolean; consentWarnings: string[]; sourceWarnings: string[]; draftWarnings: string[]; consentResets: string[] }> {
   const consentResets: string[] = [];
   const now = new Date().toISOString();
   let existing: Edition | null = null;
@@ -212,6 +237,16 @@ export async function saveEdition(
   if (input.previewText !== undefined && input.previewText.length > 200) throw new EditionError('The preview text is too long (max 200 characters).');
   for (const [k, v] of [['windowStart', input.windowStart], ['windowEnd', input.windowEnd]] as const) {
     if (v && !DATE_ONLY.test(v)) throw new EditionError(`${k} must look like 2026-10-01.`);
+  }
+
+  // Hard gate: the do-not-feature list wins over any consent. It checks what THIS save
+  // brings in (the featured list and the body, when they are passed), so an edition can
+  // always be fixed one part at a time. create_draft checks the whole saved edition again.
+  const blocked = doNotFeatureProblems({ featured: input.featured ?? [], bodyHtml: input.bodyHtml ?? '' }, await getDoNotFeature(env));
+  if (blocked.length) {
+    throw new EditionError(
+      `Nothing was saved, because the do-not-feature list blocks it:\n- ${blocked.join('\n- ')}\nThe list wins over any consent. Take them out of the featured stories and the body (do not just reword the name to get around this). Only the editor can change the list.`,
+    );
   }
 
   const base: Edition =
@@ -253,7 +288,7 @@ export async function saveEdition(
     edition.campaignId && consentWarnings.length
       ? ['This edition already has a Mailchimp draft, and that draft may contain a story whose consent is not confirmed. create_draft will refuse to update it. Remove it with delete_draft (after checking with the user) until consent is confirmed again.']
       : [];
-  return { edition, created: !existing, consentWarnings, draftWarnings, consentResets };
+  return { edition, created: !existing, consentWarnings, sourceWarnings: sourceProblems(edition), draftWarnings, consentResets };
 }
 
 /** Returns the edition with this id, or (no id) the most recently saved one. */

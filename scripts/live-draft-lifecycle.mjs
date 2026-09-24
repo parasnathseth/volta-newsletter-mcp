@@ -36,7 +36,7 @@ try {
   templateId = tpl.id;
   await env.OAUTH_KV.put('template:current', JSON.stringify({ html: shell, mailchimpTemplateId: templateId, updatedAt: 'x', updatedBy: 'test', note: '' }));
 
-  const confirmed = [{ founder: 'Test Founder', company: 'Test Co', topic: 'Live lifecycle test', consent: 'confirmed', consentVia: 'test script' }];
+  const confirmed = [{ founder: 'Test Founder', company: 'Test Co', topic: 'Live lifecycle test', consent: 'confirmed', consentVia: 'test script', sourceUrl: 'https://example.com/live-test-source' }];
   const { edition } = await saveEdition(env, { label: 'Live lifecycle test', subject: 'Lifecycle test', previewText: 'Please ignore', bodyHtml: '<p>Lifecycle test body</p>', featured: confirmed }, 'live-test');
 
   // 1. create
