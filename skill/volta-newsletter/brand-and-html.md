@@ -78,7 +78,7 @@ Founder spotlight card (one per featured story; change only the text and the lin
 </table>
 ```
 
-Info card (news, an opportunity or an announcement; same shape as the event card with a different accent color, `#FF6D6D` coral or `#FFBB0E` amber, on both the `bgcolor` and the `background-color`, and no gradient):
+Info card (a program deadline, an opportunity or an announcement; same shape as the event card with a different accent color, `#FF6D6D` coral or `#FFBB0E` amber, on both the `bgcolor` and the `background-color`, and no gradient). Every item links to its source, so keep the link line; use the item's own page, not a home page:
 ```html
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0A0A0C" style="background-color:#0A0A0C;border:1px solid #232327;border-radius:10px;margin-bottom:10px;">
   <tr>
@@ -86,6 +86,7 @@ Info card (news, an opportunity or an announcement; same shape as the event card
     <td bgcolor="#0A0A0C" style="padding:14px 16px;background-color:#0A0A0C;">
       <p style="margin:0 0 3px;F;font-size:15px;font-weight:600;color:#F5F5F7;">HEADLINE</p>
       <p style="margin:0;F;font-size:13px;line-height:1.5;color:#A3A3AD;">One or two lines of detail.</p>
+      <p style="margin:6px 0 0;"><a href="SOURCE_URL" style="F;font-size:12px;font-weight:600;color:#05D9E7;text-decoration:none;">Details &rarr;</a></p>
     </td>
   </tr>
 </table>
@@ -96,4 +97,69 @@ Section heading (larger title inside a section):
 <p style="margin:0 0 10px;F;font-size:20px;font-weight:700;line-height:1.3;color:#F5F5F7;">Heading text</p>
 ```
 
-Use HTML entities for punctuation (`&rarr;`, `&middot;`, `&rsquo;`, `&amp;`). Escape `&` and `<` in text you insert. Links must be full `https://` URLs.
+### Blocks for the newsletter sections
+
+The issue has four sections, in this order: Volta wins, Coming up, AI news since the last edition, The idea (with the residency call to action). Start each section with the section label block. Which block goes where:
+
+| Section | Blocks |
+|---|---|
+| Volta wins | Section label "Volta wins", then one founder spotlight card per story |
+| Coming up | Section label "Coming up", then event cards (events) and info cards (program deadlines) |
+| AI news since the last edition | Section label "AI news since the last edition", then 3 to 5 AI news cards |
+| The idea | Section label "The idea", the idea card, then the residency call to action with campaign tag |
+
+Put a divider between sections. There is no asks-and-offers section, and team highlights are never a section (see `backlog-and-followup.md`).
+
+AI news card (one per news item, 3 to 5 per issue; solid cyan strip, no gradient). Fill it only from the vetted item's `sanitizedText` and the page you opened. Keep "what happened" to one or two plain sentences and "why it matters" to one sentence. The last line names the source and the publication date, and links to the exact article:
+```html
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0A0A0C" style="background-color:#0A0A0C;border:1px solid #232327;border-radius:10px;margin-bottom:10px;">
+  <tr>
+    <td width="4" bgcolor="#05D9E7" style="background-color:#05D9E7;border-radius:10px 0 0 10px;font-size:0;line-height:0;">&nbsp;</td>
+    <td bgcolor="#0A0A0C" style="padding:14px 16px;background-color:#0A0A0C;">
+      <p style="margin:0 0 4px;F;font-size:15px;font-weight:600;line-height:1.4;color:#F5F5F7;">HEADLINE</p>
+      <p style="margin:0 0 8px;F;font-size:14px;line-height:1.5;color:#D9D9DE;">One or two plain sentences on what happened.</p>
+      <p style="margin:0 0 8px;F;font-size:13px;line-height:1.5;color:#A3A3AD;"><span style="color:#F5F5F7;font-weight:600;">Why it matters for founders:</span> one plain sentence.</p>
+      <p style="margin:0;"><a href="SOURCE_URL" style="F;font-size:12px;font-weight:600;color:#05D9E7;text-decoration:none;">SOURCE NAME &middot; PUBLISHED DATE &rarr;</a></p>
+    </td>
+  </tr>
+</table>
+```
+
+Idea card (one per issue, fixed four-line layout: the idea in one line, who needs it, why now, try this in a week). The text comes from the idea you ran through `idea_check`, unchanged. The last line links the evidence pages (at least two), so every claim has a source. The idea is labeled as an idea; never rewrite it to sound like a fact:
+```html
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0A0A0C" style="background-color:#0A0A0C;border:1px solid #232327;border-radius:10px;margin-bottom:14px;">
+  <tr>
+    <td bgcolor="#0A0A0C" style="padding:22px 24px;background-color:#0A0A0C;">
+      <p style="margin:0 0 6px;F;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#05D9E7;">An idea to think about</p>
+      <p style="margin:0 0 16px;F;font-size:20px;font-weight:700;line-height:1.3;color:#F5F5F7;">IDEA TITLE</p>
+      <p style="margin:0 0 3px;F;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#A3A3AD;">The idea in one line</p>
+      <p style="margin:0 0 14px;F;font-size:15px;line-height:1.6;color:#F5F5F7;">PITCH</p>
+      <p style="margin:0 0 3px;F;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#A3A3AD;">Who needs it</p>
+      <p style="margin:0 0 14px;F;font-size:15px;line-height:1.6;color:#D9D9DE;">WHO</p>
+      <p style="margin:0 0 3px;F;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#A3A3AD;">Why now</p>
+      <p style="margin:0 0 14px;F;font-size:15px;line-height:1.6;color:#D9D9DE;">WHY NOW</p>
+      <p style="margin:0 0 3px;F;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#A3A3AD;">Try this in a week</p>
+      <p style="margin:0 0 14px;F;font-size:15px;line-height:1.6;color:#D9D9DE;">TRY THIS WEEK</p>
+      <p style="margin:0;F;font-size:12px;line-height:1.5;color:#A3A3AD;">Sources: <a href="EVIDENCE_URL_1" style="color:#05D9E7;text-decoration:underline;">SOURCE NAME 1</a> &middot; <a href="EVIDENCE_URL_2" style="color:#05D9E7;text-decoration:underline;">SOURCE NAME 2</a></p>
+    </td>
+  </tr>
+</table>
+```
+
+Residency call to action with a campaign tag (goes right after the idea card; this replaces the plain call to action above in issues that carry an idea). The paragraph is the `residencyLine` from the idea, copied word for word from the live https://voltaeffect.com/ai-residency page with its deadline; never write it from memory. The link keeps the address from the live page and adds a tag so Mailchimp's click report can tell issues apart: `utm_source=newsletter`, `utm_medium=email` and `utm_campaign=newsletter-` plus the issue's date (for example `newsletter-2026-10-05`). Write `&` as `&amp;` inside `href`. Use the same address for the text and the button:
+```html
+<div style="background-color:#14101F;border:1px solid #332A55;border-radius:10px;padding:20px 24px;text-align:center;">
+  <p style="margin:0 0 16px;F;font-size:15px;line-height:1.6;color:#F5F5F7;">RESIDENCY LINE</p>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr>
+    <td bgcolor="#6101FF" style="border-radius:999px;background-color:#6101FF;background-image:linear-gradient(90deg,#FF6D6D,#FFBB0E 30%,#05D9E7 65%,#6101FF);padding:2px;font-size:0;line-height:0;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-radius:999px;"><tr>
+        <td bgcolor="#0A0A0A" style="border-radius:999px;background-color:#0A0A0A;"><a href="https://voltaeffect.com/ai-residency?utm_source=newsletter&amp;utm_medium=email&amp;utm_campaign=newsletter-2026-10-05" style="display:inline-block;padding:14px 36px;F;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:999px;">Apply Now</a></td>
+      </tr></table>
+    </td>
+  </tr></table>
+</div>
+```
+
+Use HTML entities for punctuation (`&rarr;`, `&middot;`, `&rsquo;`, `&amp;`). Escape `&` and `<` in text you insert, including inside `href` values (`&amp;`). Links must be full `https://` URLs. Text you insert comes from the vetted item (`sanitizedText`), never from the raw update.
+
+Do not add other fenced `html` blocks to this file: the test harness treats every one as a building block and runs it through the server's checks.

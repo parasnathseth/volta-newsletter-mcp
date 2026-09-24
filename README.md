@@ -1,68 +1,74 @@
-# Volta Newsletter MCP server
+# Volta Newsletter assistant
 
-A remote [MCP](https://modelcontextprotocol.io) server on Cloudflare Workers that lets Claude help Volta's newsletter editor plan, write, preview, test and prepare the community newsletter as a **Mailchimp draft**. The editor chats with Claude; Claude uses this server's tools. Nothing is ever sent to subscribers from here: the editor reviews and sends from Mailchimp.
+A Claude helper that gathers what happened at Volta, checks it, and prepares the community newsletter as a **Mailchimp draft**. It is a small server (Cloudflare Workers, TypeScript) plus a Claude **Skill**. Claude is the only AI; the server is plain, strict rules. Nothing is ever sent to subscribers from here: Bader reads the draft in Mailchimp and clicks send himself.
 
-```
-Editor <-> Claude (+ the volta-newsletter Skill) --MCP over HTTPS + Google OAuth--> this Worker --> Mailchimp API
-                                                                                       |--> Volta calendar (.ics)
-                                                                                       '--> Cloudflare KV (editions, template history, backlog)
-```
+## Who it is for
 
-## What it can do
+Bader, Volta's newsletter editor. He is not technical and stays in Claude and Mailchimp. Matt, Laura and Amy can also add highlights to a backlog from their own Claude. A developer sets it up once (see `SETUP.md`).
 
-| Area | Tools |
-|---|---|
-| Events | `get_upcoming_events` (real feed, Halifax times, cached) |
-| Editions | `save_edition`, `get_edition`, `list_editions`, `render_edition`, `delete_edition` |
-| Mailchimp | `create_draft`, `send_test`, `delete_draft`, `get_report`, `list_past_campaigns` |
-| Analytics (read-only, aggregate) | `compare_campaigns`, `get_audience_stats`, plus the richer `get_report` |
-| Template | `get_template`, `update_template`, `list_template_versions`, `restore_template` |
-| Founder backlog | `backlog_add`, `backlog_list`, `backlog_update`, `backlog_remove` |
+## What Bader does each week
 
-Safety rules built into the server:
-- **Draft-only:** there is no tool that sends to subscribers.
-- **Consent gate:** a Mailchimp draft cannot be created unless every featured story has confirmed consent. Consent is per story and resets if the story's topic or founder changes.
-- **Volta-only:** sign-in is limited to verified Volta Google Workspace accounts, and only Claude's real OAuth redirect addresses may connect (a look-alike client cannot register). Test emails can only go to `@voltaeffect.com`.
-- **Guard rails:** re-pushing a draft needs explicit `overwrite`; HTML is checked for scripts, dangerous tags and unsafe links; risky tools are rate limited per person; ids are validated before they touch storage.
+A scheduled Claude task, or Bader saying "start the newsletter", begins the run. Claude gathers the calendar, the voltaeffect.com blog and residency page, AI news since the last issue, the backlog and anything Bader pasted, then checks it all. After that:
 
-## Project layout
+1. **Open the result.** Claude shows what is in the issue and what is left out, with a plain reason for each.
+2. **Answer the yes/no questions.** For example "Do you have Jane's OK to share this?" or "Use this idea?". Claude asks only yes/no questions.
+3. **Read the full draft preview.** One complete draft is built for you to react to. Ask for changes in plain words.
+4. **Optionally send yourself a test email** (Volta addresses only).
+5. **Say yes.** Claude creates the Mailchimp draft.
+6. **Open Mailchimp, read it, edit if you like, and send it yourself.**
 
-- `src/index.ts` Worker entry: Google OAuth in front of `/mcp`
-- `src/server.ts` builds the MCP server and registers every tool
-- `src/tools/` tool definitions; `src/lib/` the logic behind them (`ics`, `events`, `edition`, `campaign`, `template`, `backlog`, `render`, `mailchimp`)
-- `src/auth/` Google sign-in, consent page, access rule
-- `template/shell.html` the email shell (header, footer, one editable `body` region)
-- `skill/volta-newsletter/SKILL.md` the instructions Claude follows (upload to Claude)
-- `scripts/` unit tests, the live Mailchimp test and the end-to-end harness
-- `HANDOFF.md` what Volta must do to run this in production; `KNOWN-ISSUES.md` limitations and lessons
+Each issue has four sections: Volta wins, Coming up, AI news since the last edition (3 to 5 short items), and one startup idea with the AI Residency call to action. Every item links to its source.
 
-## Local setup
+## The safety promises
+
+- **Nothing is sent.** There is no send tool. The tools can only create a draft.
+- **No founder without their OK.** Consent is per story. A draft cannot be created until the editor has confirmed it, and it resets if the story changes.
+- **Nobody on the do-not-feature list is named,** whatever else says yes.
+- **Every item links to its source.** A featured story without a source link cannot become a draft.
+- **Embargoed news waits** until its date.
+- **Hidden instructions in what Claude reads cannot change what is featured.** They are removed and reported, and consent never comes from text.
+- **Two layers of checking.** The server applies fixed rules; Claude then double-checks what a server cannot (it opens the links). The stricter verdict wins, and Claude can only tighten, never loosen.
+- **Numbers in the startup idea must come from a cited source.**
+- **Only Volta accounts can sign in,** and test emails go only to Volta addresses.
+
+These are checks, not guarantees. Consent is still the editor's word, the server cannot open web pages, and the pattern-based checks can miss cleverly worded text. Bader reads the draft before sending. `docs/HOW-IT-WORKS.md` lists each check and its limits.
+
+## What is built, and what is not
+
+**Built:** live calendar events; editions with per-story consent and source links; `vet_updates` (server-side vetting) with the agent double-check; the do-not-feature list; AI news rules; the idea and residency section with `idea_check`; the founder backlog with team highlights marked as reference; test emails and Mailchimp drafts; analytics; template editing with undo; the Skill; setup and handoff checks.
+
+**Not built:**
+- Sign-in callbacks for other AI tools (ChatGPT, Cursor, Codex). Only Claude can connect.
+- Slack or Gmail connections. Bader pastes what he wants included.
+- Our own scheduler (a cron). The schedule is a Claude scheduled task on Bader's device.
+- An `AGENTS.md` file.
+- A local (no-server) edition.
+- An asks-and-offers section. Pasted asks still get a verdict but have no section.
+
+The `v3` git tag is the earlier version, without vetting, ideas or AI news.
+
+**Not yet verified:** how Claude behaves with the Skill in real conversations, the scheduled task on Bader's device, Google sign-in from a Volta-owned project, and whether Mailchimp reports the residency link's campaign tags as separate links. See `KNOWN-ISSUES.md` and `HANDOFF.md`.
+
+## Run the tests
 
 ```bash
 npm install
-cp .dev.vars.example .dev.vars   # then fill in the values (gitignored)
-npm test                         # unit tests, no network
-npm run e2e                      # every workflow through the MCP layer, against the real calendar and a Mailchimp sandbox
-npm run live:drafts              # create/re-push/delete a real Mailchimp draft, then clean up
-npm run smoke                    # quick check of the Mailchimp mechanics this relies on
+npm test                # unit tests, no network, no accounts
+npm run demo:vet        # prints the verdict table for the 24 made-up test-pack updates
+npx tsc --noEmit        # type check
 ```
 
-`e2e`, `live:drafts` and `smoke` need `MAILCHIMP_API_KEY` in `.dev.vars` and use a **sandbox** Mailchimp account. They only create drafts and a throwaway template, then delete them (`smoke` sends one test email to the account owner).
+`npm run e2e`, `npm run live:drafts` and `npm run smoke` need a **sandbox** Mailchimp key in `.dev.vars` (copy `.dev.vars.example`). Never run them against Volta's real Mailchimp account.
 
-Operations scripts (need `npx wrangler login`): `npm run handoff:check -- <worker-url>` (is this deployment production-ready?), `npm run backup` (export KV data), `npm run revoke:sessions` (sign people out), `npm run skill:zip` (package the Skill).
+## More
 
-## Deploying
+- `SETUP.md`: the one-time setup on Bader's device (about 30 minutes).
+- `HANDOFF.md`: what Volta must own and configure to run this in production.
+- `KNOWN-ISSUES.md`: limitations and lessons learned.
+- `docs/HOW-IT-WORKS.md`: how it works and how to explain it, check by check.
+- `CLAUDE.md`: working knowledge for anyone changing the code.
+- `skill/volta-newsletter/`: the instructions Claude follows (`npm run skill:zip` packages them).
 
-```bash
-npx wrangler login        # once, opens a browser
-npx wrangler deploy
-```
+## For developers
 
-Secrets live in Cloudflare (`npx wrangler secret put <NAME>`): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `MAILCHIMP_API_KEY`. For development only, `DEV_MODE=true` enables `EXTRA_ALLOWED_EMAILS` (personal emails allowed to sign in and receive test emails); **neither may exist in production**. Plain settings are in `wrangler.jsonc`. After a deploy that adds or changes tools, **disconnect and reconnect** the connector in Claude so it reloads the tool list.
-
-## Connecting Claude
-
-1. In Claude: Customize > Connectors > add a custom connector with the Worker URL ending in `/mcp`, then sign in with a Volta Google account.
-2. Build the Skill zip with `npm run skill:zip` (Windows/PowerShell) and upload `dist/volta-newsletter-skill.zip` in Claude's Skills settings, or zip the `skill/volta-newsletter` folder yourself so the archive contains `volta-newsletter/SKILL.md`.
-
-See `HANDOFF.md` before using this in production.
+`src/index.ts` is the Worker entry (Google OAuth in front of `/mcp`); `src/server.ts` registers the tools; `src/tools/` holds tool definitions and `src/lib/` the logic; `src/auth/` sign-in; `template/shell.html` the email shell; `scripts/` the tests, demo and operations scripts. Deploy with `npx wrangler deploy`, and after any deploy that changes tools, disconnect and reconnect the connector in Claude so it reloads the tool list. Secrets live in Cloudflare (`npx wrangler secret put <NAME>`), never in git.

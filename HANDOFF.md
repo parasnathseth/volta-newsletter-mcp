@@ -22,6 +22,7 @@ This server was built and tested on the developer's personal accounts (a persona
 - [ ] Confirm `ALLOWED_EMAIL_DOMAIN` in `wrangler.jsonc` is `voltaeffect.com`. Everyone with a verified Volta Google account can then use the tools; access ends when Volta suspends the account (see *Offboarding*).
 
 ## 4. Remove every development shortcut (important)
+- [ ] (Optional) Set `EDITOR_EMAILS` (comma-separated, for example the editor's `@voltaeffect.com` address) under `vars` in `wrangler.jsonc` and redeploy. Backlog entries added by anyone else are then marked as team highlights, and team members cannot edit or remove the editor's entries. While it is unset, everyone counts as the editor.
 - [ ] `npx wrangler secret delete DEV_MODE` and `npx wrangler secret delete EXTRA_ALLOWED_EMAILS`. With `DEV_MODE` set, a personal email in `EXTRA_ALLOWED_EMAILS` can sign in and receive test emails, bypassing the Volta-only rule. In production neither may exist.
 - [ ] Make sure `MAILCHIMP_DRY_RUN` is not set, and `ALLOWED_REDIRECT_URIS` is empty (only Claude's real callback addresses may connect).
 - [ ] Run `npm run handoff:check -- https://<worker-url>`. Every FAIL line must be fixed before go-live.
