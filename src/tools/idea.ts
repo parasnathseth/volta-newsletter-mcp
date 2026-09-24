@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
-import { checkIdeaAgainstLog, IdeaError, listIdeas, MAX_WORDS, recordIdea } from '../lib/idea.ts';
+import { checkIdeaAgainstLog, HARD_LIMITS, IdeaError, listIdeas, MAX_WORDS, recordIdea } from '../lib/idea.ts';
 import { logEvent } from '../lib/log.ts';
 import { textResult } from '../lib/mcp.ts';
 import { checkRateLimit, RateLimitError } from '../lib/rateLimit.ts';
@@ -9,37 +9,42 @@ import type { Env } from '../types.ts';
 const fail = (message: string) => ({ ...textResult(message), isError: true });
 const friendly = (prefix: string, err: unknown) => (err instanceof IdeaError || err instanceof RateLimitError ? err.message : `${prefix}: ${(err as Error).message}`);
 
+// Every text is capped (see HARD_LIMITS in lib/idea.ts, which enforces the same numbers itself).
+const text = z.string().max(HARD_LIMITS.text);
+
 // The idea fields are shared by idea_check and idea_record, so they are described once.
 // The wording matters: Claude reads these descriptions when it fills the fields in.
 const ideaFields = {
-  title: z.string().describe('Short name for the idea (max 100 characters).'),
-  pitch: z.string().describe('The idea in ONE line, in plain language. No slogans such as "Uber for ..." or "AI-powered platform".'),
-  who: z.string().describe('A specific type of customer in Atlantic Canada, for example "independent seafood processors in Nova Scotia". Not "businesses" or "everyone".'),
-  whyNow: z.string().describe('One sentence on why this is possible or needed now. Any number must come from an evidence quote.'),
-  tryThisWeek: z.string().describe('One cheap first test a founder could run this week.'),
-  residencyLine: z.string().describe('The AI Residency call to action, with its deadline, copied from the live https://voltaeffect.com/ai-residency page. Never invented or remembered from before.'),
+  title: text.describe('Short name for the idea (max 100 characters).'),
+  pitch: text.describe('The idea in ONE line, in plain language. No slogans such as "Uber for ..." or "AI-powered platform".'),
+  who: text.describe('A specific type of customer in Atlantic Canada, for example "independent seafood processors in Nova Scotia". Not "businesses" or "everyone".'),
+  whyNow: text.describe('One sentence on why this is possible or needed now. Any number must come from an evidence quote.'),
+  tryThisWeek: text.describe('One cheap first test a founder could run this week.'),
+  residencyLine: text.describe('The AI Residency call to action, with its deadline, copied from the live https://voltaeffect.com/ai-residency page. Never invented or remembered from before.'),
   evidence: z
     .array(
       z.object({
-        url: z.string().describe('A real http(s) link you have opened yourself.'),
-        quote: z.string().describe('A short quote copied from that page showing the problem or the timing.'),
-        note: z.string().optional().describe('Optional: why this source matters.'),
+        url: text.describe('A real http(s) link you have opened yourself.'),
+        quote: text.describe('A short quote copied from that page showing the problem or the timing.'),
+        note: text.optional().describe('Optional: why this source matters.'),
       }),
     )
+    .max(HARD_LIMITS.items)
     .describe('At least 2 sources, each a different page.'),
   existing: z
     .array(
       z.object({
-        name: z.string().describe('A product or competitor that already exists.'),
-        url: z.string().describe('A real http(s) link to it.'),
-        difference: z.string().describe('How this idea differs from it.'),
+        name: text.describe('A product or competitor that already exists.'),
+        url: text.describe('A real http(s) link to it.'),
+        difference: text.describe('How this idea differs from it.'),
       }),
     )
+    .max(HARD_LIMITS.items)
     .describe('At least 1 product that already exists. Search the web for more than you first think of.'),
   agentChecks: z
     .object({
-      opened: z.array(z.string()).describe('The evidence links you actually opened, to confirm each quote is on the page.'),
-      found: z.string().optional().describe('Other existing products your search found, and anything that made you doubt a quote.'),
+      opened: z.array(z.string().max(HARD_LIMITS.openedLength)).max(HARD_LIMITS.opened).describe('The evidence links you actually opened, to confirm each quote is on the page.'),
+      found: text.optional().describe('Other existing products your search found, and anything that made you doubt a quote.'),
     })
     .optional()
     .describe('A record of your own double-check. Without it, idea_check warns that the links were not opened.'),
@@ -79,7 +84,7 @@ export function registerIdeaTools(server: McpServer, env: Env, userEmail: () => 
     'idea_record',
     {
       description: `Records the newsletter's startup idea in the idea log so later issues do not repeat it. Call it ONLY after the editor has seen the idea and approved it in this conversation. It re-runs every idea_check rule and refuses an idea with problems, so run idea_check first. Pass editionId to link the idea to the edition it appears in. ${RULES} ${HONESTY}`,
-      inputSchema: { ...ideaFields, editionId: z.string().optional().describe('The edition this idea appears in (from save_edition), if there is one.') },
+      inputSchema: { ...ideaFields, editionId: z.string().max(64).optional().describe('The edition this idea appears in (from save_edition), if there is one.') },
     },
     async ({ editionId, ...idea }) => {
       try {

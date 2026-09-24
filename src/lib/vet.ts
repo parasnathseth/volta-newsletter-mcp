@@ -16,14 +16,16 @@
 //                     verdict; the `injection` rule (last in the list, a HOLD) does: an item that
 //                     carried an instruction for an AI is not featured until Bader has looked.
 //   1. do_not_feature   drop   the item is about someone on the do-not-feature list
+//                       hold   a founder or ask item whose TITLE names someone on the list
 //   2. past             drop   an event whose date is before the newsletter date
 //   3. old_news         drop   a non-event dated before the last issue
-//   4. repeat           drop   the same link was in the last issue
+//   4. repeat           drop   the same link AND the same company or title was in the last issue
 //   5. duplicate        drop   same link and same subject as an EARLIER item
 //   6. no_link/hearsay  drop   no usable http(s) link
 //   7. bad_date         hold   a date that is missing (events) or not a real date
-//   8. news_window / news_source / unverified_news    (AI news only)
-//   9. embargo          hold   agreed, but not until a date after the newsletter date
+//   8. news_window / news_source / unverified_news    (AI news only; unverified means the
+//                       agent has not recorded opening the item's OWN link)
+//   9. embargo          hold   not until a date after the newsletter date, whatever the consent
 //  10. consent          hold   a story about a person or company without a confirmed yes
 //  11. conflict         hold   two sources disagree about an event's date
 // Every rule runs. The verdict comes from the first DROP if there is one, otherwise the
@@ -63,7 +65,7 @@ export interface AgentCheck {
   id: string;
   verdict: 'ok' | 'hold' | 'drop';
   reason: string;
-  /** The links the agent actually opened. AI news needs at least one. */
+  /** The links the agent actually opened. AI news needs the item's own link among them. */
   opened?: string[];
   found?: string;
 }
@@ -134,9 +136,11 @@ export function isIsoDate(value: unknown): value is string {
 
 /**
  * A comparable form of an http(s) link, or null when it is not a usable link. Ignores
- * http vs https, "www.", a trailing slash, a #fragment and utm_ tracking tags, none of which
- * change which page it is.
+ * http vs https, "www.", a trailing slash, a #fragment and tracking tags (utm_*, fbclid, gclid,
+ * mc_cid, mc_eid), none of which change which page it is.
  */
+const TRACKING_PARAMS = ['fbclid', 'gclid', 'mc_cid', 'mc_eid'];
+
 export function normalizeLink(raw: string | null | undefined): string | null {
   if (!raw) return null;
   let url: URL;
@@ -148,12 +152,16 @@ export function normalizeLink(raw: string | null | undefined): string | null {
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
   url.hash = '';
   for (const key of [...url.searchParams.keys()]) {
-    if (key.toLowerCase().startsWith('utm_')) url.searchParams.delete(key);
+    const name = key.toLowerCase();
+    if (name.startsWith('utm_') || TRACKING_PARAMS.includes(name)) url.searchParams.delete(key);
   }
   const host = url.hostname.toLowerCase().replace(/^www\./, '');
   if (host === '') return null;
   return `${host}${url.pathname.replace(/\/+$/, '')}${url.search}`;
 }
+
+/** Cuts a value that is echoed into a reason to at most 80 characters. */
+const short = (value: string) => (value.length > 80 ? `${value.slice(0, 77)}...` : value);
 
 // ---------------------------------------------------------------- one item, prepared
 
@@ -169,6 +177,8 @@ interface Prepared {
   textEdited: boolean;
   titleEdited: boolean;
   redactions: string[];
+  /** The listed names that were in the title (a title names who the item is about). */
+  namesInTitle: string[];
   /** Set only if a listed name is still in the text after removal (odd punctuation). */
   leftoverMention: string | null;
   /** The do-not-feature name this item is ABOUT (its company or person), if any. */
@@ -186,11 +196,12 @@ interface Prepared {
 }
 
 function consentState(item: VetItem, newsletterDate: string): ConsentState {
+  // Rule 2: an embargo date after the newsletter date holds the item, whatever the consent says.
+  if (isIsoDate(item.embargoUntil) && item.embargoUntil > newsletterDate) return 'embargo_pending';
   if (item.consent === 'yes') return 'yes';
   if (item.consent === 'embargoed') {
-    // Rule 2: once the embargo date has come, the founder's earlier yes counts.
-    if (isIsoDate(item.embargoUntil) && item.embargoUntil <= newsletterDate) return 'yes';
-    return 'embargo_pending';
+    // Once the embargo date has come, the founder's earlier yes counts. No valid date: still held.
+    return isIsoDate(item.embargoUntil) ? 'yes' : 'embargo_pending';
   }
   return 'not_yes';
 }
@@ -240,6 +251,7 @@ function prepare(item: VetItem, index: number, names: string[], newsletterDate: 
     textEdited: textScan.findings.length > 0 || inText.length > 0,
     titleEdited: titleScan.findings.length > 0 || inTitle.length > 0,
     redactions,
+    namesInTitle: inTitle,
     leftoverMention,
     listedName: findListedName(item, names),
     link: normalizeLink(item.link),
@@ -253,8 +265,7 @@ function prepare(item: VetItem, index: number, names: string[], newsletterDate: 
 
 /** A short name for reasons: company, else person, else title, else the id. */
 function label(p: Prepared): string {
-  const name = p.item.company || p.item.person || p.title || p.item.id;
-  return name.length > 60 ? `${name.slice(0, 60)}...` : name;
+  return short(p.item.company || p.item.person || p.title || p.item.id);
 }
 
 // ---------------------------------------------------------------- the rules
@@ -269,6 +280,7 @@ const drop = (rule: string, reason: string): Decision => ({ verdict: 'drop', rul
 
 interface LastIssueEntry {
   link: string | null;
+  company: string;
   title: string;
 }
 
@@ -278,7 +290,7 @@ interface Context {
   lastIssue: LastIssueEntry[];
   /** Every prepared item in input order, so a rule can compare an item with the others. */
   all: Prepared[];
-  /** Ids the agent recorded opening at least one link for (used for AI news). */
+  /** Ids the agent recorded opening the item's own link for (used for AI news). */
   verifiedIds: Set<string>;
 }
 
@@ -303,7 +315,15 @@ function conflictsWith(a: Prepared, b: Prepared): boolean {
 
 const ruleDoNotFeature: Rule = (p) => {
   if (!p.listedName) return null;
-  return drop('do_not_feature', `${p.listedName} asked not to be featured. That wins over any consent, so this is dropped.`);
+  return drop('do_not_feature', `${short(p.listedName)} asked not to be featured. That wins over any consent, so this is dropped.`);
+};
+
+// A founder or ask item is ABOUT a person or company. If its title names someone on the list,
+// taking the name out would leave "a Volta company raises seed", a story about nobody. A person
+// has to look at it. (A name only in the body text of a recap is just removed, see prepare.)
+const ruleListedNameInTitle: Rule = (p) => {
+  if ((p.item.kind !== 'founder' && p.item.kind !== 'ask') || p.namesInTitle.length === 0) return null;
+  return hold('do_not_feature', `The title names ${short(p.namesInTitle[0])}, who is on the do-not-feature list, and this item is about a person or company. Removing the name would leave a story about nobody, so Bader must look at it.`);
 };
 
 const rulePast: Rule = (p, ctx) => {
@@ -318,11 +338,23 @@ const ruleOldNews: Rule = (p, ctx) => {
   return drop('old_news', `Dated ${p.date}, before the last issue (${ctx.lastIssueDate}), so it is old news.`);
 };
 
+// Each text mentions the other (whole words, ignoring case and punctuation).
+const mentions = (a: string, b: string) => findNameMentions(a, [b]).length > 0 || findNameMentions(b, [a]).length > 0;
+
+// The same page is not enough (an evergreen page can carry new news): the item's company,
+// person or title must also appear in what the last issue said about that link.
+function sameAsLastIssue(p: Prepared, entry: LastIssueEntry): boolean {
+  if (!entry.company && !entry.title) return true; // nothing but the link to compare
+  const mine = [p.item.company ?? '', p.item.person ?? '', p.title];
+  return [entry.company, entry.title].some((said) => mine.some((name) => mentions(said, name)));
+}
+
 const ruleRepeat: Rule = (p, ctx) => {
   if (!p.link) return null;
-  const hit = ctx.lastIssue.find((entry) => entry.link === p.link);
+  const hit = ctx.lastIssue.find((entry) => entry.link === p.link && sameAsLastIssue(p, entry));
   if (!hit) return null;
-  return drop('repeat', `This link was already in the last issue${hit.title ? ` ("${hit.title}")` : ''}. Nothing new is recorded, so it is dropped.`);
+  const said = hit.title || hit.company;
+  return drop('repeat', `This link and subject were already in the last issue${said ? ` ("${short(said)}")` : ''}. Nothing new is recorded, so it is dropped.`);
 };
 
 const ruleDuplicate: Rule = (p, ctx) => {
@@ -343,7 +375,7 @@ const ruleNoLink: Rule = (p) => {
 };
 
 const ruleBadDate: Rule = (p) => {
-  if (p.badDate) return hold('bad_date', `The date "${p.item.date}" is not a real YYYY-MM-DD date, so the date checks could not run. Bader should confirm it.`);
+  if (p.badDate) return hold('bad_date', `The date "${short(String(p.item.date))}" is not a real YYYY-MM-DD date, so the date checks could not run. Bader should confirm it.`);
   if (p.item.kind === 'event' && !p.date) return hold('bad_date', 'This event has no date, so nobody can tell whether it is still to come. Bader should confirm it.');
   return null;
 };
@@ -366,13 +398,13 @@ const ruleNewsSource: Rule = (p) => {
 
 const ruleUnverifiedNews: Rule = (p, ctx) => {
   if (p.item.kind !== 'ai_news' || ctx.verifiedIds.has(p.item.id)) return null;
-  return hold('unverified_news', 'Nobody has recorded opening the linked page to check the date and the summary against it. Bader should check it, or the AI double-check must open it first.');
+  return hold('unverified_news', "Nobody has recorded opening this item's own link (the same page, not another one) to check the date and the summary against it. Bader should check it, or the AI double-check must open that link first.");
 };
 
 const ruleEmbargo: Rule = (p, ctx) => {
   if (p.consent !== 'embargo_pending') return null;
   if (isIsoDate(p.item.embargoUntil)) {
-    return hold('embargo', `Agreed, but embargoed until ${p.item.embargoUntil}, which is after the newsletter date (${ctx.newsletterDate}). Not before then.`);
+    return hold('embargo', `Embargoed until ${p.item.embargoUntil}, which is after the newsletter date (${ctx.newsletterDate}). Not before then.`);
   }
   return hold('embargo', 'Marked as embargoed but with no valid end date, so it is held until Bader confirms when the embargo lifts.');
 };
@@ -416,6 +448,7 @@ const ruleInjection: Rule = (p) => {
 
 const RULES: Rule[] = [
   ruleDoNotFeature,
+  ruleListedNameInTitle,
   rulePast,
   ruleOldNews,
   ruleRepeat,
@@ -508,18 +541,20 @@ function indexAgentChecks(checks: AgentCheck[]): Map<string, AgentCheck> {
   return byId;
 }
 
-/** Ids of AI news items for which the agent recorded opening at least one link. */
-function idsWithOpenedLinks(checks: AgentCheck[]): Set<string> {
+/** Ids for which the agent recorded opening the item's OWN link (the same page, not just any link). */
+function idsWithOpenedOwnLink(checks: AgentCheck[], all: Prepared[]): Set<string> {
+  const ownLink = new Map(all.map((p) => [p.item.id, p.link]));
   const ids = new Set<string>();
   for (const check of checks) {
-    if ((check.opened ?? []).some((link) => typeof link === 'string' && link.trim() !== '')) ids.add(check.id);
+    const own = ownLink.get(check.id);
+    if (own && (check.opened ?? []).some((link) => normalizeLink(link) === own)) ids.add(check.id);
   }
   return ids;
 }
 
 function checkInput(input: VetInput): void {
-  if (!isIsoDate(input.newsletterDate)) throw new VetError(`newsletterDate must be a real date written YYYY-MM-DD, got "${String(input.newsletterDate)}".`);
-  if (!isIsoDate(input.lastIssueDate)) throw new VetError(`lastIssueDate must be a real date written YYYY-MM-DD, got "${String(input.lastIssueDate)}".`);
+  if (!isIsoDate(input.newsletterDate)) throw new VetError(`newsletterDate must be a real date written YYYY-MM-DD, got "${short(String(input.newsletterDate))}".`);
+  if (!isIsoDate(input.lastIssueDate)) throw new VetError(`lastIssueDate must be a real date written YYYY-MM-DD, got "${short(String(input.lastIssueDate))}".`);
   if (input.lastIssueDate > input.newsletterDate) throw new VetError('lastIssueDate cannot be after newsletterDate.');
   if (!Array.isArray(input.items)) throw new VetError('items must be a list.');
   const seen = new Set<string>();
@@ -538,11 +573,11 @@ export function vetUpdates(input: VetInput): VetOutput {
   const agentChecks = indexAgentChecks(input.agentChecks ?? []);
 
   const all = input.items.map((item, index) => prepare(item, index, names, input.newsletterDate));
-  const verifiedIds = idsWithOpenedLinks(input.agentChecks ?? []);
+  const verifiedIds = idsWithOpenedOwnLink(input.agentChecks ?? [], all);
   const ctx: Context = {
     newsletterDate: input.newsletterDate,
     lastIssueDate: input.lastIssueDate,
-    lastIssue: (input.lastIssueItems ?? []).map((entry) => ({ link: normalizeLink(entry.link), title: entry.title ?? entry.company ?? '' })),
+    lastIssue: (input.lastIssueItems ?? []).map((entry) => ({ link: normalizeLink(entry.link), company: entry.company ?? '', title: entry.title ?? '' })),
     all,
     verifiedIds,
   };

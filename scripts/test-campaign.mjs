@@ -146,6 +146,24 @@ test('create_draft refuses when the body names someone on the do-not-feature lis
   assert.equal(calls.length, 0);
 });
 
+test('REGRESSION: create_draft refuses when the saved subject line, preview text or label names someone on the do-not-feature list', async () => {
+  for (const [field, what] of [['subject', 'subject line'], ['previewText', 'preview text'], ['label', 'edition label']]) {
+    const { calls } = installMailchimp();
+    const env = await makeEnv();
+    const e = await okEdition(env, { [field]: 'Great news for Tidewater Maps' }); // saved BEFORE the person asked to be left out
+    await addDoNotFeature(env, { name: 'Tidewater Maps' }, 'u');
+    await assert.rejects(
+      createDraft(env, shell, { editionId: e.id, by: 'u' }),
+      (err) => err instanceof EditionError && new RegExp(`The ${what} names them`).test(err.message) && /the subject line and the preview text with save_edition/.test(err.message),
+      field,
+    );
+    assert.equal(calls.length, 0, 'not even a read: the gate runs first');
+
+    await removeDoNotFeature(env, 'Tidewater Maps', 'u'); // once the name is off the list, the same edition goes through
+    assert.equal((await createDraft(env, shell, { editionId: e.id, by: 'u' })).campaignId, 'C1', field);
+  }
+});
+
 test('create_draft: the do-not-feature gate works when KV listings are stale (the list is read by exact key)', async () => {
   const { calls } = installMailchimp();
   const env = await makeEnv();

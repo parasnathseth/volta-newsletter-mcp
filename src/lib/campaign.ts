@@ -74,9 +74,10 @@ export async function createDraft(env: CampaignEnv, bundledShell: string, args: 
   // The gates run before anything is sent to Mailchimp. The do-not-feature list is checked
   // first because it wins over consent: asking whether such a person agreed would be pointless.
   // It checks the saved edition again, since the list may have changed after the edition was saved.
+  // The whole edition goes in, so the subject line, preview text and label are read too.
   const blocked = doNotFeatureProblems(edition, await getDoNotFeature(env));
   if (blocked.length) {
-    throw new EditionError(`No Mailchimp draft was created because the do-not-feature list blocks this edition:\n- ${blocked.join('\n- ')}\nThe list wins over any consent. Remove them from the featured stories and the body with save_edition, then try again. Only the editor can change the list.`);
+    throw new EditionError(`No Mailchimp draft was created because the do-not-feature list blocks this edition:\n- ${blocked.join('\n- ')}\nThe list wins over any consent. Remove them from the featured stories, the body, the subject line and the preview text with save_edition, then try again. Only the editor can change the list.`);
   }
   const consent = consentProblems(edition);
   if (consent.length) throw new ConsentError(consent);

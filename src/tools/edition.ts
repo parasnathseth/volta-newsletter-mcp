@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
-import { consentProblems, EditionError, getEdition, listEditions, saveEdition, sourceProblems } from '../lib/edition.ts';
+import { consentProblems, EditionError, getEdition, listEditions, MAX_BODY_CHARS, MAX_FEATURED, MAX_SOURCE_URL, saveEdition, sourceProblems } from '../lib/edition.ts';
 import { logEvent } from '../lib/log.ts';
 import { textResult } from '../lib/mcp.ts';
 import { checkRateLimit, RateLimitError } from '../lib/rateLimit.ts';
@@ -17,17 +17,23 @@ const missingNote = (consentWarnings: string[], sourceWarnings: string[]) => {
   return missing.length ? `A Mailchimp draft cannot be created until every featured story has ${missing.join(' and ')}.` : undefined;
 };
 
+// Upper limits on what one request may carry, so a huge value is refused before any work is done.
+const MAX_FIELD = 300; // founder, company, topic, how consent was given
+const MAX_NOTE = 1000; // consent note, outcome
+const MAX_ID = 64; // ids are 26 characters; this is only an outer bound
+
 const featuredSchema = z.object({
-  id: z.string().optional().describe('Existing story id to update; omit to add a new story (an id is assigned).'),
-  founder: z.string().describe('Founder or person featured.'),
-  company: z.string().optional().describe('Startup or company.'),
-  topic: z.string().describe('What this story is about. Consent is tied to this specific story, not to the founder in general.'),
+  id: z.string().max(MAX_ID).optional().describe('Existing story id to update; omit to add a new story (an id is assigned).'),
+  founder: z.string().max(MAX_FIELD).describe('Founder or person featured.'),
+  company: z.string().max(MAX_FIELD).optional().describe('Startup or company.'),
+  topic: z.string().max(MAX_FIELD).describe('What this story is about. Consent is tied to this specific story, not to the founder in general.'),
   consent: z.enum(['none', 'requested', 'confirmed']).optional().describe('Consent to share THIS story. Only "confirmed" once the user says the founder agreed.'),
-  consentVia: z.string().nullable().optional().describe('How consent was given (email, Slack, in person, ...). Required when consent is "confirmed".'),
-  consentNote: z.string().optional().describe('Optional note, e.g. what exactly was agreed.'),
-  outcome: z.string().nullable().optional().describe('Filled in later from a founder check-in (did the feature help?).'),
+  consentVia: z.string().max(MAX_FIELD).nullable().optional().describe('How consent was given (email, Slack, in person, ...). Required when consent is "confirmed".'),
+  consentNote: z.string().max(MAX_NOTE).optional().describe('Optional note, e.g. what exactly was agreed.'),
+  outcome: z.string().max(MAX_NOTE).nullable().optional().describe('Filled in later from a founder check-in (did the feature help?).'),
   sourceUrl: z
     .string()
+    .max(MAX_SOURCE_URL)
     .nullable()
     .optional()
     .describe('REQUIRED for every featured story before a draft can be made: an http(s) link to where the story\'s facts come from (an article, the founder\'s own post, their site). Never invent one. Changing the story\'s topic or founder clears it, so send it again then.'),
@@ -42,16 +48,16 @@ export function registerEditionTools(server: McpServer, env: Env, bundledShell: 
       description:
         'Saves the newsletter edition being worked on so any later chat can pick it up. With no editionId it creates a new edition; with an editionId it updates only the fields you pass (others are kept). bodyHtml is only the newsletter content (an HTML fragment with inline styles) that goes inside the template\'s body region: no <html>/<body>, no scripts, no mc:edit. It must stay in Volta\'s dark brand style: the email is dark, so use only the brand colours (backgrounds #0A0A0A, #0A0A0C, #14101F, #232327, #332A55; text #F5F5F7, #D9D9DE, #A3A3AD, #FFFFFF; accents #05D9E7, #6101FF, #FF6D6D, #FFBB0E) and the Skill\'s building blocks; light backgrounds, dark text and other colours are refused unless the user explicitly asked for a different look (then set allowOffBrand true). Event details in it must come verbatim from get_upcoming_events. List every founder story in `featured` with its own consent status; passing `featured` replaces the whole list. Never set consent to "confirmed" unless the user has told you the founder agreed to this story, and record how in consentVia. Give every featured story a sourceUrl (a link to where its facts come from); a draft cannot be created without one. Anyone on the do-not-feature list (see do_not_feature_list) cannot be named in a featured story or in the body: the save is refused and nothing is stored, whatever consent says. Returns the edition id and any consent and source-link warnings.',
       inputSchema: {
-        editionId: z.string().optional().describe('Omit to create a new edition.'),
-        label: z.string().optional().describe('Free-text name, e.g. "October", "Week 40", "Summer special".'),
+        editionId: z.string().max(MAX_ID).optional().describe('Omit to create a new edition.'),
+        label: z.string().max(200).optional().describe('Free-text name, e.g. "October", "Week 40", "Summer special".'),
         status: z.enum(['in_progress', 'drafted']).optional(),
-        windowStart: z.string().optional().describe('First day of events covered, YYYY-MM-DD.'),
-        windowEnd: z.string().optional().describe('Last day of events covered, YYYY-MM-DD.'),
-        subject: z.string().optional().describe('Email subject line.'),
-        previewText: z.string().optional().describe('Inbox preview text (max 200 characters).'),
-        bodyHtml: z.string().optional().describe('The newsletter content as an inline-styled HTML fragment, in the Volta dark brand style (see the Skill building blocks).'),
+        windowStart: z.string().max(10).optional().describe('First day of events covered, YYYY-MM-DD.'),
+        windowEnd: z.string().max(10).optional().describe('Last day of events covered, YYYY-MM-DD.'),
+        subject: z.string().max(150).optional().describe('Email subject line.'),
+        previewText: z.string().max(200).optional().describe('Inbox preview text (max 200 characters).'),
+        bodyHtml: z.string().max(MAX_BODY_CHARS).optional().describe('The newsletter content as an inline-styled HTML fragment, in the Volta dark brand style (see the Skill building blocks).'),
         allowOffBrand: z.boolean().optional().describe('Leave unset. Set true ONLY when the user explicitly asked for a look outside the Volta dark brand style; otherwise a body with off-brand colours is refused.'),
-        featured: z.array(featuredSchema).optional().describe('All founder stories in this edition (replaces the previous list).'),
+        featured: z.array(featuredSchema).max(MAX_FEATURED).optional().describe('All founder stories in this edition (replaces the previous list).'),
       },
     },
     async (args) => {
@@ -84,7 +90,7 @@ export function registerEditionTools(server: McpServer, env: Env, bundledShell: 
     'get_edition',
     {
       description: 'Returns a saved edition in full (body, subject, featured stories with consent). With no id, returns the most recently saved edition, which is how to pick a draft back up in a new chat.',
-      inputSchema: { id: z.string().optional().describe('Edition id; omit for the most recently saved.') },
+      inputSchema: { id: z.string().max(MAX_ID).optional().describe('Edition id; omit for the most recently saved.') },
     },
     async ({ id }) => {
       try {
@@ -121,7 +127,7 @@ export function registerEditionTools(server: McpServer, env: Env, bundledShell: 
     {
       description:
         'Returns the finished email HTML for an edition (template shell with the saved body inserted; Mailchimp merge tags replaced by preview stand-ins) so it can be shown as a preview, for example in an HTML artifact. Do not use artifact Share links for unpublished drafts. Artifact previews differ slightly from real email clients, so suggest a test email for an accurate check. With no id, uses the most recently saved edition.',
-      inputSchema: { id: z.string().optional().describe('Edition id; omit for the most recently saved.') },
+      inputSchema: { id: z.string().max(MAX_ID).optional().describe('Edition id; omit for the most recently saved.') },
     },
     async ({ id }) => {
       try {

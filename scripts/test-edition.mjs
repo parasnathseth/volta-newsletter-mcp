@@ -322,7 +322,9 @@ test('do-not-feature: other stories and bodies save normally, and each part can 
   await kv.put(`edition:${ok.edition.id}`, JSON.stringify(raw));
   const featuredFixed = await saveEdition(env, { editionId: ok.edition.id, featured: [story({ id: 'f1' })] }, 'u');
   assert.equal(featuredFixed.edition.featured[0].company, 'Acme AI');
-  const subjectOnly = await saveEdition(env, { editionId: ok.edition.id, subject: 'Still allowed' }, 'u'); // touches neither part
+  // The subject line is checked too now: one that names them is refused, a clean one still saves.
+  await refused(env, { editionId: ok.edition.id, subject: 'News from Tidewater Maps' }, /The subject line names them/);
+  const subjectOnly = await saveEdition(env, { editionId: ok.edition.id, subject: 'Still allowed' }, 'u'); // names nobody, and the old body and story are not part of this save
   assert.equal(subjectOnly.edition.subject, 'Still allowed');
   const bodyFixed = await saveEdition(env, { editionId: ok.edition.id, bodyHtml: '<p>All clear</p>' }, 'u');
   assert.equal(bodyFixed.edition.bodyHtml, '<p>All clear</p>');
@@ -342,6 +344,46 @@ test('REGRESSION: the do-not-feature gate works even when KV listings are stale 
   await listTidewater(env);
   await refused(env, { featured: [story({ company: 'Tidewater Maps' })] }, TIDEWATER_WHY);
   await refused(env, { bodyHtml: '<p>Tidewater Maps</p>' }, /body names them/);
+});
+
+test('REGRESSION: save_edition refuses a subject line, preview text or label that names someone on the list, and saves nothing', async () => {
+  const env = makeEnv();
+  await listTidewater(env);
+  await refused(env, { subject: 'Big news from Tidewater Maps' }, /Tidewater Maps asked not to be featured.*The subject line names them/s);
+  await refused(env, { subject: 'Tidewater Maps', previewText: 'Fine' }, /The subject line names them/);
+  await refused(env, { previewText: 'Tidewater Maps is hiring' }, /The preview text names them/);
+  await refused(env, { previewText: 'Tidew&#97;ter Maps is hiring' }, /The preview text names them/);
+  await refused(env, { label: 'Tidewater Maps special' }, /The edition label names them/);
+  await refused(env, { subject: `Tide${String.fromCodePoint(0x200b)}water Maps` }, /The subject line names them/);
+  // All the places are reported at once, and the message tells Claude where to look.
+  await refused(env, { subject: 'Tidewater Maps', previewText: 'Tidewater Maps', bodyHtml: '<p>Tidewater Maps</p>' }, /subject line names them.*preview text names them.*body names them.*the subject line and the preview text/s);
+  await assert.rejects(getEdition(env), /no editions/, 'nothing was stored by any refused save');
+
+  // A clean subject, preview text and label are fine, and so is a name that is only half there.
+  const ok = await saveEdition(env, { label: 'October', subject: 'Volta in October', previewText: 'Tidewater is on the coast' }, 'u');
+  assert.equal(ok.edition.subject, 'Volta in October');
+
+  // Refusing a save leaves the saved edition exactly as it was.
+  await refused(env, { editionId: ok.edition.id, subject: 'Tidewater Maps wins', label: 'Changed' }, /The subject line names them/);
+  const after = await getEdition(env, ok.edition.id);
+  assert.equal(after.subject, 'Volta in October');
+  assert.equal(after.label, 'October');
+});
+
+test('REGRESSION: a stray "<" in the body cannot hide a listed name from save_edition', async () => {
+  const env = makeEnv();
+  await listTidewater(env);
+  await refused(env, { bodyHtml: '<p>We <3 our founders. Congrats Tidewater Maps on the launch!</p>' }, /The newsletter body names them/);
+  await refused(env, { featured: [story({ company: 'Tidew&#97;ter Maps' })] }, TIDEWATER_WHY);
+});
+
+// ---------------------------------------------------------------- limits
+test('save_edition refuses more than 50 featured stories, and takes exactly 50', async () => {
+  const env = makeEnv();
+  const stories = (n) => Array.from({ length: n }, (_, i) => story({ founder: `Founder ${i}`, topic: `Topic ${i}` }));
+  await refused(env, { featured: stories(51) }, /Too many featured stories \(51, max 50\)/);
+  await assert.rejects(getEdition(env), /no editions/);
+  assert.equal((await saveEdition(env, { featured: stories(50) }, 'u')).edition.featured.length, 50);
 });
 
 // ---------------------------------------------------------------- source links
@@ -365,6 +407,18 @@ test('source links: only http(s) web addresses are accepted, and a refused save 
   }
   await assert.rejects(getEdition(env), /no editions/);
   await saveEdition(env, { featured: [story({ sourceUrl: 'http://example.com/ok' })] }, 'u'); // plain http is allowed
+});
+
+test('REGRESSION: a source link with no real website name (such as "https://.") is refused', async () => {
+  const env = makeEnv();
+  for (const url of ['https://.', 'http://..', 'https://-', 'https://./page', 'https://.../a', 'http://[::]/x']) {
+    await assert.rejects(saveEdition(env, { featured: [story({ sourceUrl: url })] }, 'u'), (e) => e instanceof EditionError && /source link.*a real website name/.test(e.message), url);
+  }
+  await assert.rejects(getEdition(env), /no editions/);
+  for (const url of ['https://example.com', 'http://localhost:8787/x', 'https://a.co/x?y=1', 'http://192.168.0.1/a', 'https://xn--bcher-kva.example/']) {
+    const r = await saveEdition(env, { featured: [story({ sourceUrl: url })] }, 'u');
+    assert.equal(r.edition.featured[0].sourceUrl, url);
+  }
 });
 
 test('source links: kept when the story is unchanged, cleared when its topic or founder changes, and can be set or cleared explicitly', async () => {

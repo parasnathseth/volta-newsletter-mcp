@@ -1,6 +1,7 @@
 // Unit tests for the do-not-feature list: add, list, remove, the name check, and the tools. Run: npm test
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { z } from 'zod';
 import { addDoNotFeature, removeDoNotFeature, getDoNotFeature, doNotFeatureProblems, DoNotFeatureError } from '../src/lib/donotfeature.ts';
 import { registerDoNotFeatureTools } from '../src/tools/donotfeature.ts';
 import { LIMITS } from '../src/lib/rateLimit.ts';
@@ -244,4 +245,227 @@ test('tools: adds and removes are rate limited once a limit is configured for th
       else delete LIMITS[key];
     }
   }
+});
+
+// ---------------------------------------------------------------- what counts as visible text
+// Odd characters are built from code points, so they cannot be lost or changed when this file is edited.
+const cp = (...codes) => String.fromCodePoint(...codes);
+const ZERO_WIDTH_SPACE = cp(0x200b);
+const SOFT_HYPHEN = cp(0x00ad);
+const FULLWIDTH_T = cp(0xff34);
+const bodyProblems = (html) => doNotFeatureProblems({ featured: [], bodyHtml: html }, list);
+
+test('REGRESSION: a stray "<" (as in "<3" or "< $5") is plain text and cannot swallow the words after it', () => {
+  assert.equal(bodyProblems('<p>We <3 our founders. Congrats Tidewater Maps on the launch!</p>').length, 1);
+  assert.equal(bodyProblems('<p>Tickets < $5 for Tidewater Maps fans</p>').length, 1);
+  assert.equal(bodyProblems('<p>a < b and Tidewater Maps > c</p>').length, 1);
+  // Real tags are still removed: tag and attribute text is not "naming" anyone.
+  assert.deepEqual(bodyProblems('<p class="tidewater maps"><3 <a href="/tidewater-maps">Read</a></p>'), []);
+});
+
+test('REGRESSION: a body of 200 000 "<" is checked in well under a second (the old tag pattern took 97 seconds)', () => {
+  const start = Date.now();
+  assert.deepEqual(bodyProblems('<'.repeat(200_000)), []);
+  assert.equal(bodyProblems(`${'<'.repeat(200_000)} Tidewater Maps`).length, 1, 'a name after all those characters is still found');
+  assert.deepEqual(bodyProblems('<a '.repeat(66_000)), []);
+  assert.deepEqual(bodyProblems('<!'.repeat(100_000)), []);
+  assert.deepEqual(bodyProblems('<p title="'.repeat(20_000)), []);
+  const took = Date.now() - start;
+  assert.ok(took < 3000, `took ${took} ms`);
+});
+
+test('REGRESSION: entities, invisible characters and look-alike letters in the body cannot hide a name', () => {
+  for (const html of [
+    '<p>Tidew&#97;ter Maps</p>',
+    '<p>Tidew&#x61;ter Maps</p>',
+    '<p>Tide&shy;water Maps</p>',
+    '<p>Tide&#8203;water Maps</p>',
+    `<p>Tide${ZERO_WIDTH_SPACE}water Maps</p>`,
+    `<p>Tide${SOFT_HYPHEN}water Maps</p>`,
+    `<p>${FULLWIDTH_T}idewater Maps</p>`,
+    '<p>Tide<b>&shy;</b>water Maps</p>',
+    '<p>Tide<b>water</b>&nbsp;Maps</p>',
+    '<img src="x.png" alt="Tidew&#97;ter Maps logo">',
+  ]) {
+    assert.equal(bodyProblems(html).length, 1, html);
+  }
+  const rene = [{ name: `Ren${cp(0x00e9)}e C${cp(0x00f4)}t${cp(0x00e9)}`, addedAt: at }]; // Renée Côté
+  for (const html of ['<p>Ren&eacute;e C&ocirc;t&eacute; joins us</p>', `<p>${rene[0].name.normalize('NFD')}</p>`, '<p>Renee Cote</p>']) {
+    assert.equal(doNotFeatureProblems({ featured: [], bodyHtml: html }, rene).length, 1, html);
+  }
+  // The same holds for a featured story's fields.
+  const story = (over) => ({ featured: [{ founder: 'Sam Lee', company: '', topic: 'x', ...over }], bodyHtml: '' });
+  assert.equal(doNotFeatureProblems(story({ company: 'Tidew&#97;ter Maps' }), list).length, 1);
+  assert.equal(doNotFeatureProblems(story({ topic: `Tide${ZERO_WIDTH_SPACE}water Maps` }), list).length, 1);
+  assert.equal(doNotFeatureProblems(story({ founder: `${FULLWIDTH_T}idewater Maps` }), list).length, 1);
+});
+
+test('REGRESSION: the subject line, preview text and label are checked too', () => {
+  const edition = (over) => ({ featured: [], bodyHtml: '<p>fine</p>', ...over });
+  const onlyProblem = (over, what) => {
+    const p = doNotFeatureProblems(edition(over), list);
+    assert.equal(p.length, 1, JSON.stringify(over));
+    assert.match(p[0], new RegExp(`Tidewater Maps asked not to be featured.*The ${what} names them`));
+  };
+  onlyProblem({ subject: 'Big news from Tidewater Maps' }, 'subject line');
+  onlyProblem({ previewText: 'Tidew&#97;ter Maps is hiring' }, 'preview text');
+  onlyProblem({ label: 'Tidewater Maps special' }, 'edition label');
+  assert.equal(doNotFeatureProblems(edition({ subject: 'Tidewater Maps', previewText: 'Tidewater Maps', label: 'Tidewater Maps' }), list).length, 3);
+  assert.deepEqual(doNotFeatureProblems(edition({ subject: 'Volta in October', previewText: 'What is new', label: 'October' }), list), []);
+  assert.deepEqual(doNotFeatureProblems(edition({}), list), [], 'fields that are left out are fine');
+  assert.deepEqual(doNotFeatureProblems(edition({ subject: 'Tidewater', previewText: 'Maps' }), list), [], 'two fields are never glued together');
+});
+
+test('a long list is checked against a big body without reading the body once per name', () => {
+  const many = Array.from({ length: 500 }, (_, i) => ({ name: `Company Number ${i}`, addedAt: at }));
+  const start = Date.now();
+  assert.equal(doNotFeatureProblems({ featured: [], bodyHtml: `${'<p>word </p>'.repeat(15_000)}Company Number 499` }, many).length, 1);
+  assert.ok(Date.now() - start < 2000, `took ${Date.now() - start} ms`);
+});
+
+// ---------------------------------------------------------------- only the editor may change the list
+const teamEnv = () => ({ OAUTH_KV: new FakeKV(), EDITOR_EMAILS: 'Bader@VoltaEffect.com' });
+const namesOf = async (env) => (await getDoNotFeature(env)).map((e) => e.name).sort();
+const ONLY_EDITOR = /Only the editor can add or remove names on the do-not-feature list/;
+
+test('REGRESSION: only the editor can add or remove names; anyone else is refused and the list is untouched', async () => {
+  const env = teamEnv();
+  await addDoNotFeature(env, { name: 'Tidewater Maps' }, 'bader@voltaeffect.com'); // the editor's email, in any case
+  await bad(addDoNotFeature(env, { name: 'Sam Lee' }, 'matt@voltaeffect.com'), ONLY_EDITOR);
+  await bad(removeDoNotFeature(env, 'Tidewater Maps', 'matt@voltaeffect.com'), ONLY_EDITOR);
+  await bad(addDoNotFeature(env, { name: 'Sam Lee' }, 'unknown'), ONLY_EDITOR); // nobody signed in: no editor rights
+  await bad(removeDoNotFeature(env, 'Tidewater Maps', 'bader@voltaeffect.com.evil.com'), ONLY_EDITOR); // exact match, not a prefix
+  assert.deepEqual(await namesOf(env), ['Tidewater Maps']);
+  await addDoNotFeature(env, { name: 'Sam Lee' }, 'BADER@voltaeffect.com');
+  await removeDoNotFeature(env, 'tidewater maps', 'BADER@voltaeffect.com');
+  assert.deepEqual(await namesOf(env), ['Sam Lee']);
+});
+
+test('with no editor configured, everyone counts as the editor (how it worked before)', async () => {
+  const env = makeEnv();
+  await addDoNotFeature(env, { name: 'Tidewater Maps' }, 'anyone@example.com');
+  await removeDoNotFeature(env, 'Tidewater Maps', 'unknown');
+  assert.deepEqual(await namesOf(env), []);
+});
+
+test('tools: a team member is refused with a plain message but can still read the list; the removal log carries the name', async () => {
+  const env = teamEnv();
+  const editor = loadTools(env, 'bader@voltaeffect.com');
+  const team = loadTools(env, 'matt@voltaeffect.com');
+  await say(editor.do_not_feature_add, { name: 'Tidewater Maps', note: 'asked by email' });
+
+  const add = await say(team.do_not_feature_add, { name: 'Sam Lee' });
+  assert.equal(add.isError, true);
+  assert.equal(add.text, 'Only the editor can add or remove names on the do-not-feature list. Ask the editor to do it.');
+  const remove = await say(team.do_not_feature_remove, { name: 'Tidewater Maps' });
+  assert.equal(remove.isError, true);
+  assert.match(remove.text, ONLY_EDITOR);
+  const listed = await say(team.do_not_feature_list);
+  assert.deepEqual(listed.json.entries.map((e) => e.name), ['Tidewater Maps']);
+
+  const lines = [];
+  const original = console.log;
+  console.log = (line) => lines.push(JSON.parse(line));
+  try {
+    await editor.do_not_feature_remove.handler({ name: 'tidewater maps' });
+  } finally {
+    console.log = original;
+  }
+  const logged = lines.find((l) => l.event === 'tool.do_not_feature_remove');
+  assert.equal(logged.user, 'bader@voltaeffect.com');
+  assert.equal(logged.name, 'Tidewater Maps');
+  assert.deepEqual(await namesOf(env), []);
+});
+
+test('tools: the input schemas cap the size of a name and a note', () => {
+  const tools = loadTools(makeEnv());
+  const add = z.object(tools.do_not_feature_add.config.inputSchema);
+  assert.ok(add.safeParse({ name: 'x'.repeat(100), note: 'y'.repeat(500) }).success);
+  assert.equal(add.safeParse({ name: 'x'.repeat(101) }).success, false);
+  assert.equal(add.safeParse({ name: 'x'.repeat(1_000_000) }).success, false);
+  assert.equal(add.safeParse({ name: 'Ok Name', note: 'y'.repeat(501) }).success, false);
+  const remove = z.object(tools.do_not_feature_remove.config.inputSchema);
+  assert.ok(remove.safeParse({ name: 'Tidewater Maps' }).success);
+  assert.equal(remove.safeParse({ name: 'x'.repeat(5000) }).success, false);
+});
+
+// ---------------------------------------------------------------- calls at the same moment
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// Every read and write takes a moment, so calls started together really do interleave (as on Workers KV).
+class SlowKV extends FakeKV {
+  async get(k, type) {
+    await sleep(5);
+    return super.get(k, type);
+  }
+  async put(k, v, opts) {
+    await sleep(5);
+    return super.put(k, v, opts);
+  }
+}
+// Loses its next `lose` writes without an error, as if another call's write had landed on top of them.
+class LosingKV extends FakeKV {
+  lose = 0;
+  async put(k, v, opts) {
+    if (this.lose > 0) {
+      this.lose--;
+      return;
+    }
+    return super.put(k, v, opts);
+  }
+}
+
+test('REGRESSION: three adds at the same moment all end up on the list (they used to overwrite each other)', async () => {
+  for (let round = 0; round < 3; round++) {
+    const env = { OAUTH_KV: new SlowKV() };
+    const added = await Promise.all(['Alpha Co', 'Beta Co', 'Gamma Co'].map((name) => addDoNotFeature(env, { name }, 'u')));
+    assert.deepEqual(await namesOf(env), ['Alpha Co', 'Beta Co', 'Gamma Co'], `round ${round}`);
+    assert.equal(new Set(added.map((e) => e.id)).size, 3);
+  }
+});
+
+test('REGRESSION: three removes at the same moment all take effect, and a remove next to an add too', async () => {
+  for (let round = 0; round < 2; round++) {
+    const env = { OAUTH_KV: new SlowKV() };
+    for (const name of ['Alpha Co', 'Beta Co', 'Gamma Co', 'Delta Co']) await addDoNotFeature(env, { name }, 'u');
+    await Promise.all(['Alpha Co', 'Beta Co', 'Gamma Co'].map((name) => removeDoNotFeature(env, name, 'u')));
+    assert.deepEqual(await namesOf(env), ['Delta Co'], `round ${round}`);
+
+    await Promise.all([addDoNotFeature(env, { name: 'Epsilon Co' }, 'u'), removeDoNotFeature(env, 'Delta Co', 'u')]);
+    assert.deepEqual(await namesOf(env), ['Epsilon Co'], `round ${round}`);
+  }
+});
+
+test('two adds of the SAME name at the same moment leave it on the list once; one of them is told it was already there', async () => {
+  const env = { OAUTH_KV: new SlowKV() };
+  const results = await Promise.allSettled([addDoNotFeature(env, { name: 'Tidewater Maps' }, 'u'), addDoNotFeature(env, { name: 'tidewater maps' }, 'u')]);
+  assert.equal(results.filter((r) => r.status === 'fulfilled').length, 1);
+  const refused = results.find((r) => r.status === 'rejected');
+  assert.match(refused.reason.message, /already on the do-not-feature list/);
+  assert.equal((await getDoNotFeature(env)).length, 1);
+});
+
+test('an add or remove whose write was overwritten is tried again, and does not end up twice', async () => {
+  const kv = new LosingKV();
+  const env = { OAUTH_KV: kv };
+  kv.lose = 2;
+  const added = await addDoNotFeature(env, { name: 'Tidewater Maps' }, 'u');
+  await addDoNotFeature(env, { name: 'Sam Lee' }, 'u');
+  assert.deepEqual((await getDoNotFeature(env)).map((e) => e.name), ['Tidewater Maps', 'Sam Lee']);
+  assert.equal((await getDoNotFeature(env))[0].id, added.id);
+
+  kv.lose = 2;
+  const removed = await removeDoNotFeature(env, 'Tidewater Maps', 'u');
+  assert.equal(removed.id, added.id);
+  assert.deepEqual(await namesOf(env), ['Sam Lee']);
+});
+
+test('an add or remove that cannot be confirmed fails with a clear message instead of claiming success', async () => {
+  const kv = new LosingKV();
+  const env = { OAUTH_KV: kv };
+  await addDoNotFeature(env, { name: 'Sam Lee' }, 'u');
+  kv.lose = 1000;
+  await bad(addDoNotFeature(env, { name: 'Tidewater Maps' }, 'u'), /Could not confirm that "Tidewater Maps" was added.*try again/);
+  await bad(removeDoNotFeature(env, 'Sam Lee', 'u'), /Could not confirm that "Sam Lee" was removed.*try again/);
+  kv.lose = 0;
+  assert.deepEqual(await namesOf(env), ['Sam Lee'], 'nothing changed');
 });

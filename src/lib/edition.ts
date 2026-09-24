@@ -92,7 +92,9 @@ export class EditionError extends Error {
 
 const KEY_PREFIX = 'edition:';
 const POINTER_KEY = 'edition:pointer:latest';
-const MAX_BODY_CHARS = 200_000;
+export const MAX_BODY_CHARS = 200_000;
+export const MAX_FEATURED = 50; // stories in one edition; keeps a request (and the check of it) small
+export const MAX_SOURCE_URL = 500;
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 // Edition ids are 26 Crockford characters. Checking the shape keeps caller-supplied ids
@@ -125,12 +127,21 @@ export function sourceProblems(edition: Pick<Edition, 'featured'>): string[] {
     .map((f) => `The story "${f.topic}" (${f.founder}${f.company ? `, ${f.company}` : ''}) has no source link. Every featured story needs a link to where its facts come from, such as an article or the founder's own post.`);
 }
 
+// A website name needs at least one letter or digit: "https://." passes the pattern below but is no address.
+function hasRealHost(url: string): boolean {
+  try {
+    return /[\p{L}\p{N}]/u.test(new URL(url).hostname);
+  } catch {
+    return false; // an address the URL parser rejects has no usable host either
+  }
+}
+
 // Only plain web addresses are kept, so something like "javascript:..." can never be stored.
 function cleanSourceUrl(raw: string | null, founder: string, topic: string): string | null {
   const url = raw?.trim();
   if (!url) return null; // null or blank means "no source link"
-  if (url.length > 500 || !/^https?:\/\/\S+$/i.test(url)) {
-    throw new EditionError(`The source link for "${topic}" (${founder}) must be a web address starting with http:// or https://.`);
+  if (url.length > MAX_SOURCE_URL || !/^https?:\/\/\S+$/i.test(url) || !hasRealHost(url)) {
+    throw new EditionError(`The source link for "${topic}" (${founder}) must be a web address starting with http:// or https:// and a real website name.`);
   }
   return url;
 }
@@ -235,17 +246,22 @@ export async function saveEdition(
   }
   if (input.subject !== undefined && input.subject.length > 150) throw new EditionError('The subject line is too long (max 150 characters).');
   if (input.previewText !== undefined && input.previewText.length > 200) throw new EditionError('The preview text is too long (max 200 characters).');
+  if (input.featured && input.featured.length > MAX_FEATURED) throw new EditionError(`Too many featured stories (${input.featured.length}, max ${MAX_FEATURED}).`);
   for (const [k, v] of [['windowStart', input.windowStart], ['windowEnd', input.windowEnd]] as const) {
     if (v && !DATE_ONLY.test(v)) throw new EditionError(`${k} must look like 2026-10-01.`);
   }
 
   // Hard gate: the do-not-feature list wins over any consent. It checks what THIS save
-  // brings in (the featured list and the body, when they are passed), so an edition can
-  // always be fixed one part at a time. create_draft checks the whole saved edition again.
-  const blocked = doNotFeatureProblems({ featured: input.featured ?? [], bodyHtml: input.bodyHtml ?? '' }, await getDoNotFeature(env));
+  // brings in (the featured list, the body, the subject line, the preview text and the label,
+  // whichever are passed), so an edition can always be fixed one part at a time. create_draft
+  // checks the whole saved edition again.
+  const blocked = doNotFeatureProblems(
+    { featured: input.featured ?? [], bodyHtml: input.bodyHtml ?? '', subject: input.subject, previewText: input.previewText, label: input.label },
+    await getDoNotFeature(env),
+  );
   if (blocked.length) {
     throw new EditionError(
-      `Nothing was saved, because the do-not-feature list blocks it:\n- ${blocked.join('\n- ')}\nThe list wins over any consent. Take them out of the featured stories and the body (do not just reword the name to get around this). Only the editor can change the list.`,
+      `Nothing was saved, because the do-not-feature list blocks it:\n- ${blocked.join('\n- ')}\nThe list wins over any consent. Take them out of the featured stories, the body, the subject line and the preview text (do not just reword the name to get around this). Only the editor can change the list.`,
     );
   }
 

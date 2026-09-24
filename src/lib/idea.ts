@@ -87,7 +87,11 @@ const SHORT_QUOTE_CHARS = 20; // a quote shorter than this earns a warning
 const MIN_WHO_WORDS = 3;
 const REPEAT_OVERLAP = 0.6; // pitch word overlap at or above this counts as a repeat
 const SHORT_WORD_LENGTH = 3; // words this short (or shorter) are ignored in the overlap ("the", "for", "and")
-const MAX_OPENED_LINKS = 20;
+
+// The outer limits on what one idea may carry, whatever the fields are. They are checked FIRST, and an
+// idea over them is refused before anything else reads it, so a huge input cannot make the slower checks
+// (injection scan, number search) work for long. The tool layer applies the same numbers.
+export const HARD_LIMITS = { text: 1000, items: 10, opened: 10, openedLength: 500 };
 
 // The longest each piece of text may be. These stop a single field from swelling the stored log.
 const MAX_LENGTH = { title: 100, pitch: 200, who: 200, whyNow: 300, tryThisWeek: 300, residencyLine: 400, quote: 400, note: 300, name: 100, difference: 300, url: 500, found: 1000 };
@@ -131,6 +135,32 @@ function numbersIn(text: string): string[] {
 
 const str = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
 
+function listOf<T>(value: unknown): T[] {
+  return Array.isArray(value) ? value : [];
+}
+
+/** Problems with size alone (see HARD_LIMITS). Works on the raw input, so it must not assume any field is present or the right type. */
+function oversizeProblems(input: IdeaInput): string[] {
+  const evidence = listOf<Partial<IdeaEvidence>>(input?.evidence);
+  const existing = listOf<Partial<IdeaExisting>>(input?.existing);
+  const opened = listOf<unknown>(input?.agentChecks?.opened);
+  const problems: string[] = [];
+  if (evidence.length > HARD_LIMITS.items) problems.push(`Send at most ${HARD_LIMITS.items} evidence links (found ${evidence.length}).`);
+  if (existing.length > HARD_LIMITS.items) problems.push(`Send at most ${HARD_LIMITS.items} existing products (found ${existing.length}).`);
+  if (opened.length > HARD_LIMITS.opened) problems.push(`List at most ${HARD_LIMITS.opened} opened links in agentChecks (found ${opened.length}).`);
+  if (problems.length) return problems; // do not look inside lists that are already too long
+
+  const tooLong = (value: unknown, max: number) => typeof value === 'string' && value.length > max;
+  const texts = [
+    input?.title, input?.pitch, input?.who, input?.whyNow, input?.tryThisWeek, input?.residencyLine, input?.agentChecks?.found,
+    ...evidence.flatMap((e) => [e?.url, e?.quote, e?.note]),
+    ...existing.flatMap((e) => [e?.name, e?.url, e?.difference]),
+  ];
+  if (texts.some((t) => tooLong(t, HARD_LIMITS.text))) problems.push(`No text may be longer than ${HARD_LIMITS.text} characters. Shorten the longest one.`);
+  if (opened.some((o) => tooLong(o, HARD_LIMITS.openedLength))) problems.push(`Each opened link in agentChecks may be at most ${HARD_LIMITS.openedLength} characters.`);
+  return problems;
+}
+
 /**
  * Trims everything and fills in anything missing, so the checks below never crash on a
  * half-empty idea. The checks then report the missing pieces in plain language.
@@ -154,7 +184,7 @@ function tidy(input: IdeaInput): IdeaInput {
     existing,
   };
   if (input?.agentChecks) {
-    const opened = (Array.isArray(input.agentChecks.opened) ? input.agentChecks.opened : []).map(str).filter(Boolean).slice(0, MAX_OPENED_LINKS);
+    const opened = (Array.isArray(input.agentChecks.opened) ? input.agentChecks.opened : []).map(str).filter(Boolean);
     idea.agentChecks = { opened };
     if (str(input.agentChecks.found)) idea.agentChecks.found = str(input.agentChecks.found);
   }
@@ -351,6 +381,8 @@ function checkAgentChecks(idea: IdeaInput, warnings: string[]): void {
  * ideas already recorded, used to catch repeats. Problems block recording; warnings do not.
  */
 export function checkIdea(input: IdeaInput, history: PastIdea[]): IdeaCheck {
+  const tooBig = oversizeProblems(input);
+  if (tooBig.length) return { ok: false, problems: tooBig, warnings: [], wordCount: 0 };
   const idea = tidy(input);
   const problems: string[] = [];
   const warnings: string[] = [];
