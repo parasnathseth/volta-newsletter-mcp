@@ -16,7 +16,8 @@
     "revoke:sessions": "node scripts/revoke-sessions.mjs",
     "backup": "node scripts/backup-kv.mjs",
     "skill:zip": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-skill-zip.ps1",
-    "demo:vet": "node scripts/demo-vet.mjs"
+    "demo:vet": "node scripts/demo-vet.mjs",
+    "instructions": "node scripts/build-instructions.mjs"
   },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "0.10.3",

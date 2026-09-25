@@ -2,6 +2,8 @@
 
 For the developer setting this up with Bader. Bader must be there to sign in. Steps marked **[Volta account]** need an account that Volta owns (Cloudflare, Google Workspace, Mailchimp). If Volta does not have those yet, stop after Part 1 and finish `HANDOFF.md` first; do not set up on personal accounts and call it done.
 
+The server, Google sign-in, Mailchimp and connecting an AI app (Claude, ChatGPT or Codex) are set up by the steps in `README.md`. This file adds the first-day checklist for Bader's device and the scheduled task.
+
 `<worker-url>` below means the address of the deployed Worker, for example `https://volta-newsletter-mcp.<account>.workers.dev`.
 
 ## Part 1: Before you sit with Bader (at your desk)
@@ -47,14 +49,20 @@ Create it in Claude on Bader's device, under his account (it cannot be created f
 Suggested name: `Volta newsletter run`. Suggested prompt (paste as written):
 
 ```text
-Run the Volta newsletter flow using the volta-newsletter Skill and the Volta Newsletter connector.
-Work from the date of the last issue (list_past_campaigns), not from a fixed schedule.
-Gather the sources, vet them with vet_updates, do the double-check the Skill describes, run idea_check on one idea, and build one full draft with save_edition.
-Nobody is here to say yes, so do not mark any consent, do not call create_draft or idea_record, do not change the do-not-feature list, and do not publish or delete anything.
-Finish with: what is in and out with plain reasons, a list of yes/no questions for Bader, the preview, and a short summary of the last issue's results.
+Use the Volta Newsletter skill and its connector to prepare this week's newsletter, following the skill's weekly flow and its rules for scheduled runs. Nobody is here to answer questions, so do not stop to ask anything.
+
+Today's date is the newsletter date. Use the next 14 days for events unless told otherwise.
+
+Always create a brand-new edition for this run. Never save to, change, create a draft from or delete any existing edition.
+
+Do the full run: check the do-not-feature list, pull events, read the Volta blog and the AI Residency page, find AI news since the last issue (open the newsroom pages directly, and one good item is enough), read the backlog, vet everything, do the double-check, choose one startup idea and run it through the idea check, then save one full draft edition and render the preview.
+
+Do not: mark consent, create a Mailchimp draft, record an idea, change the do-not-feature list, publish anything, or delete anything. Leave those for the editor.
+
+Finish with a short message for the editor in plain language: what is in the draft and what was left out (with reasons), the few yes/no questions I need answered (consent for any founder story, whether to use the idea, and if there is no founder story, whether they have someone to feature), and the preview. If a section could not be built, say which one and why.
 ```
 
-**Frequency.** The plan is a weekly run (for example Monday morning). The flow works from the last issue's date, so any rhythm works; Bader has said he sends monthly, so choose with him. A run that finds an unfinished edition continues it rather than starting another.
+**Frequency.** The plan is a weekly run (for example Monday morning). The flow works from the last issue's date, so any rhythm works; Bader has said he sends monthly, so choose with him. Each scheduled run starts a new edition and never touches an existing one, so it cannot overwrite Bader's work.
 
 **Changing it later.** Open the task where you created it and edit its schedule. Asking Claude to change the schedule may also work. Both are unverified; confirm on Bader's device.
 
