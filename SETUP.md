@@ -62,7 +62,7 @@ Do not: mark consent, create a Mailchimp draft, record an idea, change the do-no
 Finish with a short message for the editor in plain language: what is in the draft and what was left out (with reasons), the few yes/no questions I need answered (consent for any founder story, whether to use the idea, and if there is no founder story, whether they have someone to feature), and the preview. If a section could not be built, say which one and why.
 ```
 
-**Frequency.** The plan is a weekly run (for example Monday morning). The flow works from the last issue's date, so any rhythm works; Bader has said he sends monthly, so choose with him. Each scheduled run starts a new edition and never touches an existing one, so it cannot overwrite Bader's work.
+**Frequency.** The plan is a weekly run (for example Monday morning), and the demo sends weekly. The flow works from the last issue's date, so any rhythm works; choose with Bader. Each scheduled run starts a new edition and never touches an existing one, so it cannot overwrite Bader's work.
 
 **Changing it later.** Open the task where you created it and edit its schedule. Asking Claude to change the schedule may also work. Both are unverified; confirm on Bader's device.
 
