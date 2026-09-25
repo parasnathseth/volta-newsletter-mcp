@@ -323,58 +323,39 @@ test('a long list is checked against a big body without reading the body once pe
   assert.ok(Date.now() - start < 2000, `took ${Date.now() - start} ms`);
 });
 
-// ---------------------------------------------------------------- only the editor may change the list
-const teamEnv = () => ({ OAUTH_KV: new FakeKV(), EDITOR_EMAILS: 'Bader@VoltaEffect.com' });
+// ---------------------------------------------------------------- anyone signed in may change the list
 const namesOf = async (env) => (await getDoNotFeature(env)).map((e) => e.name).sort();
-const ONLY_EDITOR = /Only the editor can add or remove names on the do-not-feature list/;
 
-test('REGRESSION: only the editor can add or remove names; anyone else is refused and the list is untouched', async () => {
-  const env = teamEnv();
-  await addDoNotFeature(env, { name: 'Tidewater Maps' }, 'bader@voltaeffect.com'); // the editor's email, in any case
-  await bad(addDoNotFeature(env, { name: 'Sam Lee' }, 'matt@voltaeffect.com'), ONLY_EDITOR);
-  await bad(removeDoNotFeature(env, 'Tidewater Maps', 'matt@voltaeffect.com'), ONLY_EDITOR);
-  await bad(addDoNotFeature(env, { name: 'Sam Lee' }, 'unknown'), ONLY_EDITOR); // nobody signed in: no editor rights
-  await bad(removeDoNotFeature(env, 'Tidewater Maps', 'bader@voltaeffect.com.evil.com'), ONLY_EDITOR); // exact match, not a prefix
-  assert.deepEqual(await namesOf(env), ['Tidewater Maps']);
-  await addDoNotFeature(env, { name: 'Sam Lee' }, 'BADER@voltaeffect.com');
-  await removeDoNotFeature(env, 'tidewater maps', 'BADER@voltaeffect.com');
-  assert.deepEqual(await namesOf(env), ['Sam Lee']);
-});
-
-test('with no editor configured, everyone counts as the editor (how it worked before)', async () => {
+test('any signed-in user can add and remove names', async () => {
   const env = makeEnv();
-  await addDoNotFeature(env, { name: 'Tidewater Maps' }, 'anyone@example.com');
-  await removeDoNotFeature(env, 'Tidewater Maps', 'unknown');
+  await addDoNotFeature(env, { name: 'Tidewater Maps' }, 'bader@voltaeffect.com');
+  await addDoNotFeature(env, { name: 'Sam Lee' }, 'matt@voltaeffect.com');
+  await removeDoNotFeature(env, 'tidewater maps', 'matt@voltaeffect.com');
+  await removeDoNotFeature(env, 'Sam Lee', 'laura@voltaeffect.com');
   assert.deepEqual(await namesOf(env), []);
 });
 
-test('tools: a team member is refused with a plain message but can still read the list; the removal log carries the name', async () => {
-  const env = teamEnv();
-  const editor = loadTools(env, 'bader@voltaeffect.com');
-  const team = loadTools(env, 'matt@voltaeffect.com');
-  await say(editor.do_not_feature_add, { name: 'Tidewater Maps', note: 'asked by email' });
-
-  const add = await say(team.do_not_feature_add, { name: 'Sam Lee' });
-  assert.equal(add.isError, true);
-  assert.equal(add.text, 'Only the editor can add or remove names on the do-not-feature list. Ask the editor to do it.');
-  const remove = await say(team.do_not_feature_remove, { name: 'Tidewater Maps' });
-  assert.equal(remove.isError, true);
-  assert.match(remove.text, ONLY_EDITOR);
-  const listed = await say(team.do_not_feature_list);
-  assert.deepEqual(listed.json.entries.map((e) => e.name), ['Tidewater Maps']);
+test('tools: another signed-in user can add and remove, and the add and remove logs carry the user and the name', async () => {
+  const env = makeEnv();
+  const bader = loadTools(env, 'bader@voltaeffect.com');
+  const matt = loadTools(env, 'matt@voltaeffect.com');
+  await say(bader.do_not_feature_add, { name: 'Tidewater Maps', note: 'asked by email' });
 
   const lines = [];
   const original = console.log;
   console.log = (line) => lines.push(JSON.parse(line));
   try {
-    await editor.do_not_feature_remove.handler({ name: 'tidewater maps' });
+    await matt.do_not_feature_add.handler({ name: 'Sam Lee' });
+    await matt.do_not_feature_remove.handler({ name: 'tidewater maps' });
   } finally {
     console.log = original;
   }
+  assert.equal(lines.find((l) => l.event === 'tool.do_not_feature_add').user, 'matt@voltaeffect.com');
   const logged = lines.find((l) => l.event === 'tool.do_not_feature_remove');
-  assert.equal(logged.user, 'bader@voltaeffect.com');
+  assert.equal(logged.user, 'matt@voltaeffect.com');
   assert.equal(logged.name, 'Tidewater Maps');
-  assert.deepEqual(await namesOf(env), []);
+  assert.deepEqual(await namesOf(env), ['Sam Lee']);
+  assert.ok(!/only the editor/i.test(matt.do_not_feature_add.config.description + matt.do_not_feature_remove.config.description));
 });
 
 test('tools: the input schemas cap the size of a name and a note', () => {

@@ -11,9 +11,8 @@ For the developer setting this up with Bader. Bader must be there to sign in. St
 - [ ] **3. Google sign-in from a Volta-owned project.** **[Volta account]** See "Google sign-in" below. The client id and secret go on the Worker in step 4.
 - [ ] **4. Set the secrets.** `npx wrangler secret put GOOGLE_CLIENT_ID`, `npx wrangler secret put GOOGLE_CLIENT_SECRET`, and `npx wrangler secret put MAILCHIMP_API_KEY` (the key comes from a Volta-owned Mailchimp user, Account > Extras > API keys). **[Volta account]** Type each value only into wrangler's prompt, never into chat or a file.
 - [ ] **5. Remove the development shortcuts.** `npx wrangler secret delete DEV_MODE` and `npx wrangler secret delete EXTRA_ALLOWED_EMAILS`. With `DEV_MODE` on, a personal email could sign in and receive test emails. Also make sure `MAILCHIMP_DRY_RUN` is not set and `ALLOWED_REDIRECT_URIS` is empty.
-- [ ] **6. Optional: set `EDITOR_EMAILS`** so team highlights can be told apart from Bader's own notes: `npx wrangler secret put EDITOR_EMAILS`, then enter Bader's exact Volta sign-in address (separate several editors with commas). If it is not set, everyone counts as the editor. If it is set and Bader's address is missing or misspelled, he is treated as team and cannot change entries marked as the editor's.
-- [ ] **7. Run the handoff check.** `npm run handoff:check -- https://<worker-url>` (needs `npx wrangler login` on the Volta account). Fix every FAIL line before going on. Warnings are worth reading.
-- [ ] **8. Build the Skill zip.** `npm run skill:zip` (Windows PowerShell). It writes `dist/volta-newsletter-skill.zip`. On another system, zip the `skill/volta-newsletter` folder so the archive contains `volta-newsletter/SKILL.md`. Copy the zip to Bader's device.
+- [ ] **6. Run the handoff check.** `npm run handoff:check -- https://<worker-url>` (needs `npx wrangler login` on the Volta account). Fix every FAIL line before going on. Warnings are worth reading.
+- [ ] **7. Build the Skill zip.** `npm run skill:zip` (Windows PowerShell). It writes `dist/volta-newsletter-skill.zip`. On another system, zip the `skill/volta-newsletter` folder so the archive contains `volta-newsletter/SKILL.md`. Copy the zip to Bader's device.
 
 ## Google sign-in: what is known and what is not
 

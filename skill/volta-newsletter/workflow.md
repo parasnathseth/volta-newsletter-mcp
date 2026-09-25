@@ -11,7 +11,7 @@ A run starts from a scheduled Claude task or from the editor saying something li
    - `get_upcoming_events` for the window (`totalMatching` versus `returned` shows if the list was cut off; raise `limit` or narrow the window)
    - the voltaeffect.com blog for posts since `lastIssueDate` (they have appeared under `/news/`; check the path on the site) and the `/ai-residency` page for the current call to action and deadline
    - AI news since `lastIssueDate` (see `sources-and-vetting.md`)
-   - `backlog_list`, including due dates (`dueBy` today) and the team entries (`origin: "team"`), and anything the editor pasted
+   - `backlog_list`, including due dates (`dueBy` today) and colleagues' highlights (entries whose `submittedBy` is not the editor), and anything the editor pasted
 4. **Extract items.** One item per announcement, as described in `sources-and-vetting.md`.
 5. **Vet.** Call `vet_updates` with no `agentChecks`.
 6. **Double-check.** Do the checklist in `sources-and-vetting.md`, then call `vet_updates` again with your `agentChecks`. The second result is the one you act on.

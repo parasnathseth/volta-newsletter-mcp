@@ -107,8 +107,8 @@ Honest limit: what Claude says it opened is self-reported. The server cannot pro
 
 ### Team highlights are reference only
 - **Stops:** a colleague's note going straight into a newsletter, or pretending to be the editor.
-- **Runs:** the backlog stores `origin` (`editor` or `team`) and `submittedBy`, filled in by the server from the signed-in account (`src/lib/backlog.ts`). Nothing in the backlog carries consent, and the Skill says an entry only enters an issue as an item that passes `vet_updates`. `origin` only distinguishes people when the `EDITOR_EMAILS` setting is set.
-- **Show it:** `scripts/test-backlog.mjs`; `backlog_list` with the origin filter.
+- **Runs:** each backlog entry stores `submittedBy`, filled in by the server from the signed-in account (`src/lib/backlog.ts`), so a note cannot claim to be from someone else. Everyone who can sign in is an editor; there are no roles. Nothing in the backlog carries consent, and the Skill says an entry only enters an issue as an item that passes `vet_updates`.
+- **Show it:** `scripts/test-backlog.mjs`; `backlog_list` shows who added each entry.
 
 ## 5. Known limits (say these out loud)
 
@@ -119,7 +119,7 @@ Honest limit: what Claude says it opened is self-reported. The server cannot pro
 - **The approved AI news list is a short list in code.** A good source not on it is held until someone adds it and redeploys.
 - **Name matching is by name.** A nickname or a misspelling of a listed name would not match.
 - **`save_edition` checks the do-not-feature list only against what that save brings in;** `create_draft` checks the whole edition. A name added to the list after a save is caught at `create_draft`.
-- **Team labels need `EDITOR_EMAILS`.** If it is unset, everyone counts as the editor.
+- **Nobody is restricted.** Anyone who can sign in can change or remove any backlog entry and the do-not-feature list. Changes are logged with the user's email.
 - **The campaign tag on the residency link** is meant to show which idea drives clicks. It has not been checked against a real Mailchimp report that the same page with different tags shows as separate links.
 - **Claude's behaviour with the Skill can only be judged in real conversations.** The scheduled task has not been run end to end on Bader's device.
 - **Storage is last-write-wins, rate limits are a soft brake, sessions outlast a suspended Google account by up to 30 days, and Google sign-in is still in Test mode** until Volta creates its own project. See `KNOWN-ISSUES.md` and `HANDOFF.md`.

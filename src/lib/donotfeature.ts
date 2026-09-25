@@ -1,4 +1,3 @@
-import { originFor } from './backlog.ts';
 import { findNameMentions, sameName } from './nameMatch.ts';
 
 // The do-not-feature list holds people and companies who asked NOT to be named in the
@@ -13,7 +12,7 @@ import { findNameMentions, sameName } from './nameMatch.ts';
 // If the read fails (KV down, damaged document) the error is NOT swallowed: the caller
 // fails, so a save or a draft is refused rather than let through unchecked.
 //
-// Only the editor (EDITOR_EMAILS, see originFor in backlog.ts) may add or remove names.
+// Anyone signed in can add or remove names; the tools log who did it and which name.
 
 export interface DoNotFeatureEntry {
   id: string;
@@ -25,7 +24,6 @@ export interface DoNotFeatureEntry {
 
 export interface DoNotFeatureEnv {
   OAUTH_KV: KVNamespace;
-  EDITOR_EMAILS?: string; // unset means everyone counts as the editor, as in backlog.ts
 }
 
 export class DoNotFeatureError extends Error {
@@ -54,11 +52,6 @@ export async function getDoNotFeature(env: DoNotFeatureEnv): Promise<DoNotFeatur
   return loadAll(env);
 }
 
-// Whoever is not the editor may read the list but not change it.
-function requireEditor(env: DoNotFeatureEnv, by: string): void {
-  if (originFor(env, by) !== 'editor') throw new DoNotFeatureError('Only the editor can add or remove names on the do-not-feature list. Ask the editor to do it.');
-}
-
 // Workers KV cannot say "write only if nobody else wrote since I read", so two calls at the same
 // moment can each read the old list and the last write wins, losing the other name. So every change
 // checks its own work: it waits a moment (a random time, so calls that collided do not collide
@@ -70,7 +63,6 @@ const notConfirmed = (what: string) =>
   new DoNotFeatureError(`Could not confirm that ${what}: other changes to the list kept overwriting it. Check do_not_feature_list to see what is on it, then try again.`);
 
 export async function addDoNotFeature(env: DoNotFeatureEnv, input: { name: string; note?: string }, by: string): Promise<DoNotFeatureEntry> {
-  requireEditor(env, by);
   const name = (input.name ?? '').trim();
   const note = (input.note ?? '').trim();
   if (name.length < MIN_NAME) throw new DoNotFeatureError('A name is required: the person or company that asked not to be featured.');
@@ -95,7 +87,6 @@ export async function addDoNotFeature(env: DoNotFeatureEnv, input: { name: strin
 
 /** Takes a name off the list. Returns what was removed (and who removed it) so it can be re-added if this was a mistake. */
 export async function removeDoNotFeature(env: DoNotFeatureEnv, name: string, by: string): Promise<DoNotFeatureEntry & { removedBy: string; removedAt: string }> {
-  requireEditor(env, by);
   const result = (e: DoNotFeatureEntry) => ({ ...e, removedBy: by, removedAt: new Date().toISOString() });
   let removed: DoNotFeatureEntry | undefined; // set once we have written a list without it
   for (let tries = 0; tries < MAX_TRIES; tries++) {

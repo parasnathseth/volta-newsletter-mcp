@@ -11,16 +11,12 @@ import { newEditionId } from './edition.ts';
 // cheap; two people editing in the same instant could overwrite each other, which is
 // acceptable for one or two editors.
 //
-// Team highlights: other Volta staff (Matt, Laura, Amy) can add entries too. Those are
-// reference material for the editor (Bader) and are marked origin "team". They are still
-// only notes: they never carry consent and never go into a newsletter by themselves.
-// Anything Bader picks has to become an item and pass vet_updates first.
+// Highlights: any signed-in person can add entries, and submittedBy records who did. An entry
+// added by someone other than the editor is reference material for the editor. It is still
+// only a note: it never carries consent and never goes into a newsletter by itself.
+// Anything the editor picks has to become an item and pass vet_updates first.
 
 export type BacklogStatus = 'idea' | 'featured' | 'passed';
-
-// Who an entry came from. The server decides this from the signed-in user, never from
-// text a tool receives, so nobody can claim to be the editor by typing it.
-export type BacklogOrigin = 'editor' | 'team';
 
 export interface BacklogEntry {
   id: string;
@@ -34,15 +30,11 @@ export interface BacklogEntry {
   createdAt: string;
   updatedAt: string;
   updatedBy: string;
-  origin: BacklogOrigin;
-  submittedBy: string; // email of the signed-in user who added it; never changes afterwards
+  submittedBy: string; // email of the signed-in user who added it (set by the server); never changes afterwards
 }
 
 export interface BacklogEnv {
   OAUTH_KV: KVNamespace;
-  // Comma-separated emails of the editor(s), case-insensitive. Unset or empty means the
-  // feature is off and everyone counts as "editor" (how the backlog worked before).
-  EDITOR_EMAILS?: string;
 }
 
 export class BacklogError extends Error {
@@ -77,31 +69,13 @@ function checkFields(f: { founder?: string; company?: string; note?: string; rev
   if (f.revisitDate && !validDate(f.revisitDate)) throw new BacklogError('revisitDate must be a real date like 2027-01-15.');
 }
 
-/** Decides the origin for whoever is acting. Used when adding, and to check who may change what. */
-export function originFor(env: BacklogEnv, email: string): BacklogOrigin {
-  const editors = (env.EDITOR_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
-  if (editors.length === 0) return 'editor'; // not configured: behave exactly as before
-  return editors.includes(email.trim().toLowerCase()) ? 'editor' : 'team';
-}
-
-// Entries saved before origin and submittedBy existed do not have them. Fill them in on
-// load so the rest of the code can rely on them: treat old entries as the editor's own.
-type StoredEntry = Omit<BacklogEntry, 'origin' | 'submittedBy'> & { origin?: BacklogOrigin; submittedBy?: string };
+// Entries saved earlier may lack submittedBy (fall back to updatedBy) and may still carry an
+// old "origin" field. That field is dropped on load, so it is never written back.
+type StoredEntry = Omit<BacklogEntry, 'submittedBy'> & { submittedBy?: string; origin?: unknown };
 
 async function loadAll(env: BacklogEnv): Promise<BacklogEntry[]> {
   const doc = (await env.OAUTH_KV.get(DOC_KEY, 'json')) as { entries: StoredEntry[] } | null;
-  return (doc?.entries ?? []).map((e) => ({
-    ...e,
-    origin: e.origin === 'team' ? 'team' : 'editor',
-    submittedBy: e.submittedBy ?? e.updatedBy,
-  }));
-}
-
-// A team member may not change or delete what the editor wrote. (The editor may change anything.)
-function checkMayChange(env: BacklogEnv, entry: BacklogEntry, by: string) {
-  if (entry.origin === 'editor' && originFor(env, by) === 'team') {
-    throw new BacklogError('This entry was added by the editor, so only the editor can change or remove it. Ask the editor if it needs changing.');
-  }
+  return (doc?.entries ?? []).map(({ origin, ...e }) => ({ ...e, submittedBy: e.submittedBy ?? e.updatedBy }));
 }
 
 const saveAll = (env: BacklogEnv, entries: BacklogEntry[]) => env.OAUTH_KV.put(DOC_KEY, JSON.stringify({ entries }));
@@ -125,10 +99,6 @@ export async function addEntry(
   const dup = entries.find((e) => dupKey(e.founder, e.company) === dupKey(input.founder, company));
   if (dup) {
     const name = `"${input.founder.trim()}${company ? ` (${company})` : ''}"`;
-    // A team member cannot change an editor entry, so do not send them to backlog_update for it.
-    if (dup.origin === 'editor' && originFor(env, by) === 'team') {
-      throw new BacklogError(`${name} is already in the backlog (added by the editor, id ${dup.id}). Nothing more is needed; ask the editor if something should be added to it.`);
-    }
     throw new BacklogError(`${name} is already in the backlog (id ${dup.id}, status ${dup.status}). Use backlog_update to change it instead of adding a duplicate.`);
   }
 
@@ -145,7 +115,6 @@ export async function addEntry(
     createdAt: now,
     updatedAt: now,
     updatedBy: by,
-    origin: originFor(env, by),
     submittedBy: by,
   };
   await saveAll(env, [...entries, entry]);
@@ -154,16 +123,14 @@ export async function addEntry(
 
 export async function listEntries(
   env: BacklogEnv,
-  opts: { status?: BacklogStatus | 'all'; origin?: BacklogOrigin | 'all'; dueBy?: string; query?: string; limit?: number },
+  opts: { status?: BacklogStatus | 'all'; dueBy?: string; query?: string; limit?: number },
 ): Promise<{ total: number; entries: BacklogEntry[] }> {
   if (opts.dueBy && !validDate(opts.dueBy)) throw new BacklogError('dueBy must be a real date like 2027-01-15.');
   const status = opts.status ?? 'idea';
-  const origin = opts.origin ?? 'all';
   const q = opts.query ? norm(opts.query) : '';
 
   const entries = (await loadAll(env)).filter((e) => {
     if (status !== 'all' && e.status !== status) return false;
-    if (origin !== 'all' && e.origin !== origin) return false;
     if (opts.dueBy && !(e.revisitDate && e.revisitDate <= opts.dueBy)) return false;
     if (q && !norm([e.founder, e.company, e.note, ...e.links].join(' ')).includes(q)) return false;
     return true;
@@ -195,7 +162,6 @@ export async function updateEntry(env: BacklogEnv, u: BacklogUpdate, by: string)
   checkFields(u);
   const entries = await loadAll(env);
   const e = findIn(entries, u.id);
-  checkMayChange(env, e, by);
   const now = new Date().toISOString();
 
   const founder = u.founder?.trim() ?? e.founder;
@@ -230,7 +196,6 @@ export async function updateEntry(env: BacklogEnv, u: BacklogUpdate, by: string)
 export async function removeEntry(env: BacklogEnv, id: string, by: string): Promise<BacklogEntry> {
   const entries = await loadAll(env);
   const e = findIn(entries, id);
-  checkMayChange(env, e, by);
   await saveAll(env, entries.filter((x) => x.id !== id));
   return e;
 }
