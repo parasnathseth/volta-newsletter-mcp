@@ -55,11 +55,11 @@ Always create a brand-new edition for this run. Never save to, change, create a 
 
 Today's date is the newsletter date. Use the next 14 days for events unless the saved edition says otherwise.
 
-Do the full run: check the do-not-feature list, pull events, read the Volta blog and the AI Residency page, find AI news since the last issue (open the newsroom pages directly, and 1-3 good items are enough), read the backlog including team entries, vet everything, do the double-check, choose one startup idea and run it through the idea check, then save one full draft edition and render the preview.
+Do the full run: check the do-not-feature list, pull events, read the Volta blog and the AI Residency page, find AI news since the last issue (open the newsroom pages directly, and 1-3 good items are enough), read the backlog, vet everything, do the double-check, choose one startup idea and run it through the idea check, then save one full draft edition and render the preview.
 
 Do not: mark consent, create a Mailchimp draft, record an idea, change the do-not-feature list, publish anything, or delete anything. Leave those for the editor.
 
-Finish with a short message for the editor in plain language: what is in the draft and what was left out (with reasons), the few yes/no questions I need answered (consent for any founder story, whether to use the idea, any team highlights worth using), and the preview. If a section could not be built, say which one and why.
+Finish with a short message for the editor in plain language: what is in the draft and what was left out (with reasons), the few yes/no questions I need answered (consent for any founder story, whether to use the idea), and the preview. If a section could not be built, say which one and why.
 ```
 
 **Frequency.** The plan is a weekly run (for example Monday morning). The flow works from the last issue's date, so any rhythm works; Bader has said he sends monthly, so choose with him. Each scheduled run starts a new edition and never touches an existing one, so it cannot overwrite Bader's work.

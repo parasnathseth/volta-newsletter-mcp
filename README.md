@@ -10,6 +10,7 @@ An AI helper that gathers what happened at Volta, checks it, and prepares the co
 - [Get started on your machine](#get-started-on-your-machine)
 - [Appendix A: Set up the server (one time)](#appendix-a-set-up-the-server-one-time)
 - [Appendix B: ChatGPT and other AI apps](#appendix-b-chatgpt-and-other-ai-apps)
+- [Limitations](#limitations)
 
 ## What the editor does each week
 
@@ -68,11 +69,11 @@ Always create a brand-new edition for this run. Never save to, change, create a 
 
 Today's date is the newsletter date. Use the next 14 days for events unless the saved edition says otherwise.
 
-Do the full run: check the do-not-feature list, pull events, read the Volta blog and the AI Residency page, find AI news since the last issue (open the newsroom pages directly, and 1-3 good items are enough), read the backlog including team entries, vet everything, do the double-check, choose one startup idea and run it through the idea check, then save one full draft edition and render the preview.
+Do the full run: check the do-not-feature list, pull events, read the Volta blog and the AI Residency page, find AI news since the last issue (open the newsroom pages directly, and 1-3 good items are enough), read the backlog, vet everything, do the double-check, choose one startup idea and run it through the idea check, then save one full draft edition and render the preview.
 
 Do not: mark consent, create a Mailchimp draft, record an idea, change the do-not-feature list, publish anything, or delete anything. Leave those for the editor.
 
-Finish with a short message for the editor in plain language: what is in the draft and what was left out (with reasons), the few yes/no questions I need answered (consent for any founder story, whether to use the idea, any team highlights worth using), and the preview. If a section could not be built, say which one and why.
+Finish with a short message for the editor in plain language: what is in the draft and what was left out (with reasons), the few yes/no questions I need answered (consent for any founder story, whether to use the idea), and the preview. If a section could not be built, say which one and why.
 ```
 
 ### 5. Click "Run now"
@@ -120,4 +121,11 @@ Each address you add widens who can sign in, so add only what you use. `handoff:
 4. ChatGPT has no Skills. Run `npm run instructions`, then paste `dist/volta-newsletter-instructions.md` into a Project's instructions (or upload it as a project file) and use that Project. If it is too long, paste `skill/volta-newsletter/SKILL.md` and `workflow.md` first.
 5. Choose the connector in each new chat (**+ > Developer mode**).
 
-**Claude Code (terminal app).** It signs in through a fixed local address: add `http://localhost:8080/callback` to `ALLOWED_REDIRECT_URIS`, run `claude mcp add --transport http --callback-port 8080 volta-newsletter https://volta-newsletter-mcp.test-mode.workers.dev/mcp`, then sign in with `/mcp`.
+## Limitations
+
+- **Runs depend on Claude's ready-made 'scheduled tasks' feature**.
+- **Founder wins aren't found automatically.** Claude researches the people the editor names or saves in the backlog, but the best stories aren't online, so the editor still has to point it to them.
+- **Relatively Limited Portability.** Only Claude is tested. ChatGPT steps are untested and need a server setting.
+- **The server checks are fixed rules and patterns.** They catch what they are written to catch, and cleverly worded text can slip past the hidden-instruction check.
+- **Everyone who can sign in can change everything,** including the do-not-feature list and the backlog. There are no roles. Sessions also outlast a suspended Google account for up to 30 days unless revoked.
+- **Volta-owned accounts are needed** before real use in production.
