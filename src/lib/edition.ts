@@ -23,6 +23,9 @@ export interface Featured {
   // Where the story's facts come from (an article, the founder's own post). Required before a
   // draft can be made. Editions saved before this field existed have none: read it as null.
   sourceUrl: string | null;
+  // For a story the founder told the editor directly (no public link): where it came from, in a
+  // sentence. A story needs a sourceUrl OR a sourceNote. Older editions have none: read it as null.
+  sourceNote: string | null;
 }
 
 export interface Edition {
@@ -56,6 +59,7 @@ export interface FeaturedInput {
   consentNote?: string;
   outcome?: string | null;
   sourceUrl?: string | null;
+  sourceNote?: string | null;
 }
 
 export interface EditionInput {
@@ -95,6 +99,7 @@ const POINTER_KEY = 'edition:pointer:latest';
 export const MAX_BODY_CHARS = 200_000;
 export const MAX_FEATURED = 50; // stories in one edition; keeps a request (and the check of it) small
 export const MAX_SOURCE_URL = 500;
+export const MAX_SOURCE_NOTE = 500;
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 // Edition ids are 26 Crockford characters. Checking the shape keeps caller-supplied ids
@@ -120,11 +125,19 @@ export function consentProblems(edition: Pick<Edition, 'featured'>): string[] {
     .map((f) => `Consent for "${f.topic}" (${f.founder}${f.company ? `, ${f.company}` : ''}) is "${f.consent}", not confirmed.`);
 }
 
-/** Problems that must block creating a Mailchimp draft: every featured story needs a source link. */
+/** Problems that must block creating a Mailchimp draft: every featured story needs a source link or a source note. */
 export function sourceProblems(edition: Pick<Edition, 'featured'>): string[] {
   return edition.featured
-    .filter((f) => !f.sourceUrl) // also true for stories saved before the field existed
-    .map((f) => `The story "${f.topic}" (${f.founder}${f.company ? `, ${f.company}` : ''}) has no source link. Every featured story needs a link to where its facts come from, such as an article or the founder's own post.`);
+    .filter((f) => !f.sourceUrl && !f.sourceNote) // also true for stories saved before the fields existed
+    .map((f) => `The story "${f.topic}" (${f.founder}${f.company ? `, ${f.company}` : ''}) has no source. Give a source link (an article or the founder's own post) as sourceUrl or, for a story the founder told the editor directly, a short source note as sourceNote.`);
+}
+
+// The note is plain text; blank means "no note".
+function cleanSourceNote(raw: string | null, founder: string, topic: string): string | null {
+  const note = raw?.trim();
+  if (!note) return null;
+  if (note.length > MAX_SOURCE_NOTE) throw new EditionError(`The source note for "${topic}" (${founder}) is too long (max ${MAX_SOURCE_NOTE} characters).`);
+  return note;
 }
 
 // A website name needs at least one letter or digit: "https://." passes the pattern below but is no address.
@@ -197,6 +210,8 @@ function normalizeFeatured(input: FeaturedInput[], previous: Featured[], nowIso:
       // Like consent, a source link belongs to one story: if the story changed, the old link no
       // longer proves it, so it is cleared unless the caller gives a new one.
       sourceUrl: f.sourceUrl === undefined ? (storyChanged ? null : (prev?.sourceUrl ?? null)) : cleanSourceUrl(f.sourceUrl, founder, topic),
+      // The source note is reset the same way as the link.
+      sourceNote: f.sourceNote === undefined ? (storyChanged ? null : (prev?.sourceNote ?? null)) : cleanSourceNote(f.sourceNote, founder, topic),
     };
   });
 }

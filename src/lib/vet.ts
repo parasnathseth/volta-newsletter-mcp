@@ -21,7 +21,11 @@
 //   3. old_news         drop   a non-event dated before the last issue
 //   4. repeat           drop   the same link AND the same company or title was in the last issue
 //   5. duplicate        drop   same link and same subject as an EARLIER item
-//   6. no_link/hearsay  drop   no usable http(s) link
+//   6. no_link/hearsay  drop   no usable http(s) link. Exception: a founder story marked
+//                              sourceKind "founder_provided" (first told to the editor, so nothing
+//                              public to link) may have none if it has a sourceNote; with no note
+//                              it is dropped as hearsay only while consent is not yes.
+//   6b. source_note     hold   a founder_provided story with consent yes but no link and no sourceNote
 //   7. bad_date         hold   a date that is missing (events) or not a real date
 //   8. news_window / news_source / unverified_news    (AI news only; unverified means the
 //                       agent has not recorded opening the item's OWN link)
@@ -51,6 +55,10 @@ export interface VetItem {
   person?: string;
   title?: string;
   link?: string | null;
+  /** "link" (default): the story is backed by a public link. "founder_provided": the founder told the editor directly, so there may be no link. Only founder items use it. */
+  sourceKind?: 'link' | 'founder_provided';
+  /** For founder_provided: where the story came from, e.g. "Founder emailed the details to Bader on 2026-09-25". */
+  sourceNote?: string;
   /** Consent as CONFIRMED by a person. Never filled in from the item's own text. */
   consent?: Consent;
   /** Who confirmed it and where, e.g. "founder replied yes by email on 2026-09-26". */
@@ -184,6 +192,10 @@ interface Prepared {
   /** The do-not-feature name this item is ABOUT (its company or person), if any. */
   listedName: string | null;
   link: string | null;
+  /** The source note after the injection scan ("" when there is none). */
+  sourceNote: string;
+  /** A founder item marked founder_provided (told to the editor directly). */
+  founderProvided: boolean;
   /** The date if it is a real YYYY-MM-DD date, else null. */
   date: string | null;
   /** A date was given but it is not a real date. */
@@ -225,10 +237,12 @@ function prepare(item: VetItem, index: number, names: string[], newsletterDate: 
   const titleScan = scanForInjection(item.title ?? '');
   for (const finding of textScan.findings) flags.push(`injection: ${finding}`);
   for (const finding of titleScan.findings) flags.push(`injection (title): ${finding}`);
+  const noteScan = scanForInjection(item.sourceNote ?? '');
+  for (const finding of noteScan.findings) flags.push(`injection (source note): ${finding}`);
   let text = textScan.clean;
   let title = titleScan.clean;
   // Hidden characters can come from an ordinary copy and paste, so only real instructions count.
-  const injected = [...textScan.findings, ...titleScan.findings].some((finding) => !/zero-width/i.test(finding));
+  const injected = [...textScan.findings, ...titleScan.findings, ...noteScan.findings].some((finding) => !/zero-width/i.test(finding));
 
   // Rule 3 (second half): a listed name mentioned inside another item's words is removed,
   // and the item itself stays.
@@ -255,6 +269,8 @@ function prepare(item: VetItem, index: number, names: string[], newsletterDate: 
     leftoverMention,
     listedName: findListedName(item, names),
     link: normalizeLink(item.link),
+    sourceNote: noteScan.clean.trim(),
+    founderProvided: item.kind === 'founder' && item.sourceKind === 'founder_provided',
     date: isIsoDate(givenDate) ? givenDate : null,
     badDate: givenDate !== null && !isIsoDate(givenDate),
     consent: consentState(item, newsletterDate),
@@ -368,10 +384,19 @@ const ruleDuplicate: Rule = (p, ctx) => {
 // so a missing link drops the item either way; the rule name says which situation it is.
 const ruleNoLink: Rule = (p) => {
   if (p.link) return null;
+  // A founder_provided story needs no link: with a note it is fine here, and with consent
+  // given but no note the source_note rule holds it. Consent not yet given and no note: hearsay.
+  if (p.founderProvided && (p.sourceNote || p.consent !== 'not_yes')) return null;
   if (p.consent !== 'yes') {
     return drop('hearsay', 'No link and no confirmed consent. This is something heard, not something readers can check, so it is dropped.');
   }
   return drop('no_link', 'There is no http(s) link to a source, so readers would have nothing to open. It is dropped.');
+};
+
+// Consent is there (or an embargo is pending) but nothing says where a link-less story came from.
+const ruleSourceNote: Rule = (p) => {
+  if (!p.founderProvided || p.link || p.sourceNote || p.consent === 'not_yes') return null;
+  return hold('source_note', `${label(p)} has no link and no note on where the story came from. Ask Bader for a short note, for example how and when the founder shared it, or a link.`);
 };
 
 const ruleBadDate: Rule = (p) => {
@@ -454,6 +479,7 @@ const RULES: Rule[] = [
   ruleRepeat,
   ruleDuplicate,
   ruleNoLink,
+  ruleSourceNote,
   ruleBadDate,
   ruleNewsWindow,
   ruleNewsSource,

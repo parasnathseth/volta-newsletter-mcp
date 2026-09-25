@@ -393,7 +393,7 @@ test('source links: stored trimmed, and every story without one is a warning', a
   assert.equal(r.edition.featured[0].sourceUrl, 'https://example.com/jane-seed');
   assert.equal(r.edition.featured[1].sourceUrl, null);
   assert.equal(r.sourceWarnings.length, 1);
-  assert.match(r.sourceWarnings[0], /"Launch" \(Sam, Acme AI\) has no source link/);
+  assert.match(r.sourceWarnings[0], /"Launch" \(Sam, Acme AI\) has no source/);
   assert.deepEqual(sourceProblems(r.edition), r.sourceWarnings);
   assert.deepEqual(sourceProblems({ featured: [] }), []);
   assert.deepEqual((await saveEdition(makeEnv(), { label: 'none' }, 'u')).sourceWarnings, []);
@@ -487,4 +487,25 @@ test('source links do not change the list_editions summary', async () => {
   const [summary] = await listEditions(env);
   assert.deepEqual(Object.keys(summary).sort(), ['featuredCount', 'id', 'label', 'status', 'subject', 'unconfirmedConsent', 'updatedAt']);
   assert.equal(summary.unconfirmedConsent, 1);
+});
+
+// ---------------------------------------------------------------- source notes
+test('source notes: a story with only a note has no warning; one with neither still does', async () => {
+  const env = makeEnv();
+  const r = await saveEdition(env, { featured: [story({ sourceNote: '  Founder emailed the details to Bader on 2026-09-25  ' }), story({ founder: 'Sam', topic: 'Launch' })] }, 'u');
+  assert.equal(r.edition.featured[0].sourceNote, 'Founder emailed the details to Bader on 2026-09-25');
+  assert.equal(r.sourceWarnings.length, 1);
+  assert.match(r.sourceWarnings[0], /"Launch" \(Sam, Acme AI\) has no source.*sourceNote/);
+  assert.deepEqual(sourceProblems({ featured: [{ topic: 't', founder: 'f', company: '', sourceUrl: null }] }).length, 1); // old stored story
+  await assert.rejects(saveEdition(env, { featured: [story({ sourceNote: 'x'.repeat(501) })] }, 'u'), EditionError);
+});
+
+test('source notes: changing the topic clears the note unless it is sent again', async () => {
+  const env = makeEnv();
+  const { edition } = await saveEdition(env, { featured: [story({ sourceNote: 'Told to Bader in person' })] }, 'u');
+  const same = await saveEdition(env, { editionId: edition.id, featured: [story({ id: 'f1' })] }, 'u');
+  assert.equal(same.edition.featured[0].sourceNote, 'Told to Bader in person');
+  const topic = await saveEdition(env, { editionId: edition.id, featured: [story({ id: 'f1', topic: 'Hiring' })] }, 'u');
+  assert.equal(topic.edition.featured[0].sourceNote, null);
+  assert.equal(topic.sourceWarnings.length, 1);
 });

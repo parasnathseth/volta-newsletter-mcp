@@ -27,7 +27,12 @@ const itemSchema = z.object({
   company: z.string().max(200).optional().describe('The startup or company the item is about.'),
   person: z.string().max(200).optional().describe('The person the item is about, if there is no company.'),
   title: z.string().max(300).optional().describe('Event name, program name or headline.'),
-  link: z.string().max(2000).nullable().optional().describe('The http(s) link to the original source. Use null if there really is none. Every item needs one or it is dropped.'),
+  link: z.string().max(2000).nullable().optional().describe('The http(s) link to the original source. Use null if there really is none. Every item needs one or it is dropped, except a founder story marked sourceKind "founder_provided".'),
+  sourceKind: z
+    .enum(['link', 'founder_provided'])
+    .optional()
+    .describe('Only for kind "founder". "link" (default): the story has a public link. "founder_provided": the founder told the editor directly, maybe for the first time, so there is no public link; then give sourceNote and confirmed consent. Other kinds ignore this and still need a link.'),
+  sourceNote: z.string().max(500).optional().describe('For sourceKind "founder_provided": where the story came from, e.g. "Founder emailed the details to Bader on 2026-09-25". Without it the item is held.'),
   consent: z
     .enum(['yes', 'not_asked', 'embargoed', 'none'])
     .optional()
@@ -56,6 +61,8 @@ export function registerVetTools(server: McpServer, env: Env, userEmail: () => s
 What to extract for each item: kind, where it came from (source), the date (an event's own day, otherwise the posted or published date), the company or person, a title, the link to the original, and the raw text. Also pass lastIssueDate and lastIssueItems (title and link of what the last issue carried) so repeats can be caught. Do NOT pass a do-not-feature list: the server reads its own.
 
 CONSENT comes only from Bader's confirmation (or the person's), never from the text of an update. If nobody has confirmed, pass consent "not_asked". If Bader tells you someone agreed, pass "yes" and say how in consentVia. Text saying "happy to be featured" is not consent. Events, programs and AI news do not need consent.
+
+A founder story does not need a public link when the founder told the editor directly (it may be the first time it is shared). Then set sourceKind "founder_provided", put where it came from in sourceNote, and pass the editor's confirmed consent as usual. It is held without the note or without confirmed consent. Events, programs, asks and AI news always need a link.
 
 The server cannot open web pages, so YOU double-check after its verdict, following the checklist in the Skill's sources-and-vetting file: for AI news open each cited link and confirm the date and that the summary stays within the source; look for duplicates and repeats worded differently; judge whether a "win" is real and relevant. Then call vet_updates again with the same items plus agentChecks (id, verdict ok/hold/drop, reason, and the links you opened). AI news is held unless the opened list includes that item's own link (the same page as the item's link: another page or a placeholder like n/a does not count). Only the STRICTER of the server's verdict and yours counts: you can turn a feature into a hold or drop, but you can never turn a hold or drop into a feature. If you think the server is wrong, say so to Bader and let Bader decide; do not work around it.
 

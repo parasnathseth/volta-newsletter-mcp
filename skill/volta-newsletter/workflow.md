@@ -32,7 +32,7 @@ Order: a one or two sentence intro, then the four sections below, then nothing e
 
 1. **Volta wins.** Founder stories, only with consent (see the next part). A founder story waiting only on the editor's consent may stay in the draft with consent `none`, so the editor sees the whole issue; `create_draft` refuses until they confirm. Anything held for another reason (embargo, conflicting sources, a failed check) stays out of the body and out of `featured`.
 2. **Coming up.** Events from `get_upcoming_events` and program deadlines (Residency, Mentor Match) from their pages, each with a link.
-3. **AI news since the last edition.** 3 to 5 items that passed vetting, each with one or two plain sentences, why it matters for founders, and the link.
+3. **AI news since the last edition.** 1 to 5 items that passed vetting (one is enough), each with one or two plain sentences, why it matters for founders, and the link.
 4. **The idea, then the AI Residency call to action.** The four-line idea card, then the call to action with the per-edition campaign tag. If no idea passes, use the plain call to action from `brand-and-html.md` instead.
 
 ## Featuring a founder: research, write, then settle consent
@@ -58,7 +58,7 @@ Once the editor tells you the answer, record it (`consent: "confirmed"` with `co
 
 **Saving `featured`:** passing `featured` replaces the whole list, so call `get_edition` first and send back every story. Rules the server enforces:
 - A story is identified by its `id`. Send the existing `id` to keep a story and its consent record. A story sent **without** an id is a brand-new story with consent `none`; a story left out of the list is deleted.
-- Each story needs a `sourceUrl`, a full `https://` link to where the story comes from. Without one, `save_edition` still saves but returns `sourceWarnings`, and `create_draft` refuses. Like consent, the link belongs to one story: if the topic or founder changes, the old link is cleared, so send the new `sourceUrl` with the change.
+- Each story needs a source: a `sourceUrl` (a full `https://` link to where the story comes from) or, for a story the founder told the editor directly that has no public page (possibly the first time it is shared), a short `sourceNote` saying where it came from ("Founder emailed the details to Bader on 2026-09-25"). Add a `sourceUrl` as well when the company has a website worth linking. Without either, `save_edition` still saves but returns `sourceWarnings`, and `create_draft` refuses. Like consent, the source belongs to one story: if the topic or founder changes, the old `sourceUrl` and `sourceNote` are cleared, so send the new ones with the change.
 - Leaving `consent` out for an existing id keeps its current consent. `consent: "confirmed"` needs `consentVia`. `consent: "none"` clears it. You may add a `company` and a `consentNote`.
 - **If the topic or the founder of an existing story changes, its consent resets to "none"**, because consent covers one specific story. The result tells you (`consentReset`). Ask the editor whether the founder agreed to the new story before confirming again.
 - A save that brings in a story or body naming someone on the do-not-feature list is refused and nothing is saved, whatever the consent says. Take the name out; do not reword it to slip past the check.

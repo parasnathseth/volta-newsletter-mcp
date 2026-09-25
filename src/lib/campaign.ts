@@ -83,7 +83,7 @@ export async function createDraft(env: CampaignEnv, bundledShell: string, args: 
   if (consent.length) throw new ConsentError(consent);
   const sources = sourceProblems(edition);
   if (sources.length) {
-    throw new EditionError(`No Mailchimp draft was created because a featured story has no source link:\n- ${sources.join('\n- ')}\nAsk the user for the link (or find where the facts came from), then add it as sourceUrl on that story with save_edition.`);
+    throw new EditionError(`No Mailchimp draft was created because a featured story has no source:\n- ${sources.join('\n- ')}\nAsk the user for the link, or, if the founder told the editor the story directly, for a short note on where it came from. Then add it as sourceUrl or sourceNote on that story with save_edition.`);
   }
 
   const template = await getTemplateState(env, bundledShell);

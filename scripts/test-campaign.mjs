@@ -102,7 +102,7 @@ test('create_draft refuses a story with no source link, even with confirmed cons
   const { calls } = installMailchimp();
   const env = await makeEnv();
   const e = await okEdition(env, { featured: [{ founder: 'Jane', company: 'Acme', topic: 'Seed', consent: 'confirmed', consentVia: 'email' }] });
-  await assert.rejects(createDraft(env, shell, { editionId: e.id, by: 'u' }), (err) => err instanceof EditionError && /no source link/.test(err.message) && /"Seed" \(Jane, Acme\)/.test(err.message) && /sourceUrl/.test(err.message));
+  await assert.rejects(createDraft(env, shell, { editionId: e.id, by: 'u' }), (err) => err instanceof EditionError && /no source/.test(err.message) && /sourceNote/.test(err.message) && /"Seed" \(Jane, Acme\)/.test(err.message) && /sourceUrl/.test(err.message));
   assert.equal(calls.length, 0, 'not even a read: the gate runs first');
 
   // Adding the link is all it takes.
@@ -484,4 +484,14 @@ test('delete_edition honours dry-run', async () => {
   assert.equal(r.dryRun, true);
   assert.equal(r.deleted, false);
   assert.equal((await getEdition(env, e.id)).id, e.id);
+});
+
+test('create_draft accepts a story with only a source note (confirmed consent), and refuses one with neither', async () => {
+  installMailchimp();
+  const env = await makeEnv();
+  const story = { founder: 'Jane', company: 'Acme', topic: 'Seed', consent: 'confirmed', consentVia: 'email' };
+  const e = await okEdition(env, { featured: [story] });
+  await assert.rejects(createDraft(env, shell, { editionId: e.id, by: 'u' }), (err) => err instanceof EditionError && /no source/.test(err.message));
+  await saveEdition(env, { editionId: e.id, featured: [{ ...story, id: 'f1', sourceNote: 'Founder emailed the details to Bader on 2026-09-25' }] }, 'u');
+  assert.equal((await createDraft(env, shell, { editionId: e.id, by: 'u' })).campaignId, 'C1');
 });
