@@ -28,7 +28,7 @@ These are checks, not guarantees. Consent is still the editor's word, and the ed
 ## How it fits together
 
 ```
-Your AI app (Claude, ChatGPT or Codex)  -->  this server (Cloudflare)  -->  Mailchimp (drafts only)
+Your AI app (Claude, ChatGPT or Cursor)  -->  this server (Cloudflare)  -->  Mailchimp (drafts only)
    follows the Skill's instructions            holds the rules and data      Google sign-in for staff
 ```
 
@@ -87,22 +87,23 @@ Pick **one** of the sections below. Only Claude has been tested end to end.
 4. ChatGPT has no Skills. Run `npm run instructions`, then paste `dist/volta-newsletter-instructions.md` into a Project's instructions (or upload it as a project file) and use that Project for the newsletter. Long instructions may be cut off; if so, paste `skill/volta-newsletter/SKILL.md` and `workflow.md` first.
 5. Choose the connector in each new chat (**+ > Developer mode**).
 
-#### Codex (not tested)
-1. In `~/.codex/config.toml` add a fixed sign-in port and the server:
-   ```toml
-   mcp_oauth_callback_port = 8765
-
-   [mcp_servers.volta-newsletter]
-   url = "https://<worker-url>/mcp"
+#### Cursor (not tested)
+1. In your project folder, create `.cursor/mcp.json` (or use `~/.cursor/mcp.json` for all projects):
+   ```json
+   {
+     "mcpServers": {
+       "volta-newsletter": { "url": "https://<worker-url>/mcp" }
+     }
+   }
    ```
-2. Add the callback address to the server (see "Other AI apps"): `http://127.0.0.1:8765/callback`. Use the exact address Codex prints when you sign in.
-3. Run `codex mcp login volta-newsletter` and sign in with a work Google account.
-4. Open Codex in this project folder. It reads `AGENTS.md`, which points it to the instructions in `skill/volta-newsletter/`.
+2. Add Cursor's sign-in address to the server (see "Other AI apps"): `http://localhost:8787/callback` for the desktop app, and `https://www.cursor.com/agents/mcp/oauth/callback` if you also use Cursor on the web or its cloud agents. Older Cursor versions used `cursor://anysphere.cursor-mcp/oauth/callback`; if sign-in is refused, check which address was rejected (see below).
+3. Open Cursor's MCP settings (**Settings > Tools & MCP**). The Volta server shows a connect or sign-in prompt: approve it and sign in with a work Google account.
+4. Open this project folder in Cursor. It reads `AGENTS.md` in the project root, which points it to the instructions in `skill/volta-newsletter/`. Then ask it to "start the newsletter".
 
-#### Other AI apps (needed for ChatGPT, Codex and Claude Code)
+#### Other AI apps (needed for ChatGPT, Cursor and Claude Code)
 The server only accepts sign-ins from Claude's own addresses, so nobody can register a look-alike app and steal a login. To allow another app, add its exact callback address under `vars` in `wrangler.jsonc`, comma separated, then redeploy:
 ```jsonc
-"ALLOWED_REDIRECT_URIS": "https://chatgpt.com/connector_platform_oauth_redirect,http://127.0.0.1:8765/callback"
+"ALLOWED_REDIRECT_URIS": "https://chatgpt.com/connector_platform_oauth_redirect,http://localhost:8787/callback"
 ```
 Each address you add widens who can sign in, so add only what you use. `handoff:check` will flag the setting on purpose. If sign-in is refused, the log shows `auth.redirect_denied` with the host that was rejected (`npx wrangler tail`).
 
@@ -113,7 +114,7 @@ Ask your AI app to "start the newsletter" once and check the in-and-out list, th
 
 **Built:** live calendar events; per-story consent and source links; server-side vetting plus the AI double-check; the do-not-feature list; AI news rules; the startup idea checker; the founder backlog; test emails and Mailchimp drafts; analytics; template editing with undo.
 
-**Not built or not tested:** ChatGPT and Codex connections (documented above, untested); Slack or Gmail connections; our own scheduler; a no-server version. The `v3` git tag is the earlier version.
+**Not built or not tested:** ChatGPT and Cursor connections (documented above, untested); Slack or Gmail connections; our own scheduler; a no-server version. The `v3` git tag is the earlier version.
 
 ## Help
 
