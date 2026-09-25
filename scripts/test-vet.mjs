@@ -233,6 +233,12 @@ test('repeat: the same link as the last issue is dropped', () => {
   assert.match(r.reason, /Acme AI launched/);
 });
 
+test('repeat: an upcoming event that was in the last issue is featured again', () => {
+  const link = 'https://example.com/events/demo-night';
+  const r = one(event({ link }), { lastIssueItems: [{ title: 'Demo Night', link }] });
+  assert.equal(r.verdict, 'feature');
+});
+
 test('repeat: links match through http/https, www, trailing slash, fragment and utm tags', () => {
   const lastIssueItems = [{ company: 'Acme AI', link: 'http://www.example.com/acme/' }];
   assert.equal(one(founder({ link: 'https://example.com/acme?utm_source=x#top' }), { lastIssueItems }).rule, 'repeat');
@@ -498,9 +504,9 @@ test('agent: an unknown verdict word is rejected', () => {
 
 // ---- precedence and shape ---------------------------------------------------------------
 test('precedence: the first drop is reported as the rule and the others go in flags', () => {
-  // Past (drop) + repeat (drop) + no consent (hold): drop wins, "past" comes first in the fixed order.
-  const r = one(event({ date: '2026-09-24' }), { lastIssueItems: [{ title: 'Demo Night', link: 'https://example.com/events/demo-night' }] });
-  assert.equal(r.rule, 'past');
+  // Old news (drop) + repeat (drop): the first drop wins, "old_news" comes before "repeat" in the fixed order.
+  const r = one(founder({ date: '2026-08-01' }), { lastIssueItems: [{ title: 'Acme AI launched', link: 'https://example.com/acme' }] });
+  assert.equal(r.rule, 'old_news');
   assert.ok(flagged(r, 'repeat:'));
 
   // Duplicate (drop) beats consent (hold) even when the duplicate has no consent.
@@ -621,10 +627,10 @@ test('test pack: every one of the 24 updates gets the labelled verdict', () => {
   for (const [id, rule] of Object.entries(EXPECTED_RULE)) assert.equal(out.results.find((r) => r.id === id).rule, rule, `rule for ${id}`);
 });
 
-test('test pack: item 06 is past and also flagged as a repeat', () => {
+test('test pack: item 06 is dropped because it already happened (an event is never dropped as a repeat)', () => {
   const r = vetUpdates(loadTestPack()).results.find((x) => x.id === '06');
   assert.equal(r.rule, 'past');
-  assert.ok(flagged(r, 'repeat:'));
+  assert.ok(!flagged(r, 'repeat:'));
 });
 
 test('test pack: item 18 is featured with Tidewater Maps removed', () => {

@@ -105,11 +105,6 @@ Honest limit: what Claude says it opened is self-reported. The server cannot pro
 - **Runs:** `src/lib/rateLimit.ts` (soft hourly limits per person, including `vet_updates`, do-not-feature changes and `idea_record`); id shape checks in each lib.
 - **Show it:** `scripts/test-safety.mjs`.
 
-### Team highlights are reference only
-- **Stops:** a colleague's note going straight into a newsletter, or pretending to be the editor.
-- **Runs:** each backlog entry stores `submittedBy`, filled in by the server from the signed-in account (`src/lib/backlog.ts`), so a note cannot claim to be from someone else. Everyone who can sign in is an editor; there are no roles. Nothing in the backlog carries consent, and the Skill says an entry only enters an issue as an item that passes `vet_updates`.
-- **Show it:** `scripts/test-backlog.mjs`; `backlog_list` shows who added each entry.
-
 ## 5. Known limits (say these out loud)
 
 - **Consent is Bader's word.** The server records who agreed and how, and blocks drafts without it, but cannot verify it.

@@ -4,7 +4,7 @@ A Claude helper that gathers what happened at Volta, checks it, and prepares the
 
 ## Who it is for
 
-Bader, Volta's newsletter editor. He is not technical and stays in Claude and Mailchimp. Matt, Laura and Amy can also add highlights to a backlog from their own Claude. A developer sets it up once (see `SETUP.md`).
+Bader, Volta's newsletter editor. He is not technical and stays in Claude and Mailchimp. A developer sets it up once (see `SETUP.md`).
 
 ## What Bader does each week
 
@@ -35,7 +35,7 @@ These are checks, not guarantees. Consent is still the editor's word, the server
 
 ## What is built, and what is not
 
-**Built:** live calendar events; editions with per-story consent and source links; `vet_updates` (server-side vetting) with the agent double-check; the do-not-feature list; AI news rules; the idea and residency section with `idea_check`; the founder backlog with team highlights marked as reference; test emails and Mailchimp drafts; analytics; template editing with undo; the Skill; setup and handoff checks.
+**Built:** live calendar events; editions with per-story consent and source links; `vet_updates` (server-side vetting) with the agent double-check; the do-not-feature list; AI news rules; the idea and residency section with `idea_check`; the founder backlog; test emails and Mailchimp drafts; analytics; template editing with undo; the Skill; setup and handoff checks.
 
 **Not built:**
 - Sign-in callbacks for other AI tools (ChatGPT, Cursor, Codex). Only Claude can connect.

@@ -23,7 +23,6 @@ You work through the **Volta Newsletter connector** (tools listed at the end). I
 9. **Two layers of vetting.** Everything that might go into an issue passes `vet_updates` first (the server's fixed rules), then your own double-check (`sources-and-vetting.md`). The final verdict is the stricter of the two: you may hold or drop what the server allowed, never lift what it held or dropped. Held items are the editor's call, not yours.
 10. **Every item links to its source.** No source link, no item. Every featured story needs a `sourceUrl` (full `https://`); `create_draft` refuses a story without one. AI news and the idea link the pages they rest on.
 11. **The do-not-feature list wins over any consent, and only the editor can change it** (the server refuses adds and removes from anyone else). Check `do_not_feature_list` at the start of a run. Never name someone on it in a story or anywhere in the body; `save_edition` and `create_draft` refuse. Add names only when the editor says so.
-12. **Team highlights are reference only.** Backlog entries added by Matt, Laura or Amy (look at `submittedBy`) are not a section and never enter an issue by themselves. If the editor picks one, it becomes an item and goes through `vet_updates`.
 
 ## Where to look
 
@@ -33,7 +32,7 @@ This file covers what always applies. Read only the other file the current task 
 - **`sources-and-vetting.md`**: turning raw updates into `vet_updates` items, reading the verdicts, your double-check checklist, and the rules for AI news and the idea. Read it before gathering sources.
 - **`brand-and-html.md`**: Volta's dark brand style and the exact HTML blocks to build the body from. Read it whenever you write or review body HTML.
 - **`analytics.md`**: reading Mailchimp's numbers after a send, including the residency link's campaign tag, and suggesting experiments.
-- **`backlog-and-followup.md`**: the founder backlog (including team highlights) and following up with founders after they are featured.
+- **`backlog-and-followup.md`**: the founder backlog and following up with founders after they are featured.
 
 ## Tools at a glance
 

@@ -39,7 +39,6 @@ Menu names below come from `HANDOFF.md` and may have changed in Claude.
 - [ ] **6. Do one practice run.** Ask Claude to start the newsletter for a real date. Use an edition with no founder story, or leave the story out, so nobody's consent is pretended. Check the in-and-out list, answer one question, look at the preview, send a test email to Bader's own address, create the draft, open it in Mailchimp and confirm nothing was sent. Then delete the practice draft and edition (`delete_draft`, then `delete_edition`; Claude asks Bader to confirm each).
 - [ ] **7. Create the scheduled task** (next section).
 - [ ] **8. Give Bader the six weekly steps** (`README.md`, "What Bader does each week") and the owner and backup names from `HANDOFF.md`.
-- [ ] **9. Team highlights.** Ask Matt, Laura and Amy to add the connector in their own Claude, each signing in with their own Volta account, and to say "add this to the newsletter backlog: ..." with a link. The connector alone should be enough; installing the Skill is optional. Unverified: try it once with one of them.
 
 ## The scheduled task
 

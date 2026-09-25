@@ -108,7 +108,7 @@ The issue has four sections, in this order: Volta wins, Coming up, AI news since
 | AI news since the last edition | Section label "AI news since the last edition", then 1 to 5 AI news cards |
 | The idea | Section label "The idea", the idea card, then the residency call to action with campaign tag |
 
-Put a divider between sections. There is no asks-and-offers section, and team highlights are never a section (see `backlog-and-followup.md`).
+Put a divider between sections. There is no asks-and-offers section.
 
 AI news card (one per news item, 1 to 5 per issue; solid cyan strip, no gradient). Fill it only from the vetted item's `sanitizedText` and the page you opened. Keep "what happened" to one or two plain sentences and "why it matters" to one sentence. The last line names the source and the publication date, and links to the exact article:
 ```html

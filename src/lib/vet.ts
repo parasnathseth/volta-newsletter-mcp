@@ -19,7 +19,7 @@
 //                       hold   a founder or ask item whose TITLE names someone on the list
 //   2. past             drop   an event whose date is before the newsletter date
 //   3. old_news         drop   a non-event dated before the last issue
-//   4. repeat           drop   the same link AND the same company or title was in the last issue
+//   4. repeat           drop   the same link AND the same company or title was in the last issue (not for events: an upcoming event may be listed again)
 //   5. duplicate        drop   same link and same subject as an EARLIER item
 //   6. no_link/hearsay  drop   no usable http(s) link. Exception: a founder story marked
 //                              sourceKind "founder_provided" (first told to the editor, so nothing
@@ -366,6 +366,9 @@ function sameAsLastIssue(p: Prepared, entry: LastIssueEntry): boolean {
 }
 
 const ruleRepeat: Rule = (p, ctx) => {
+  // An event that is still to come may be listed again: new subscribers may not have seen it, and
+  // reminding people is useful. (An event that already happened is dropped by the `past` rule.)
+  if (p.item.kind === 'event') return null;
   if (!p.link) return null;
   const hit = ctx.lastIssue.find((entry) => entry.link === p.link && sameAsLastIssue(p, entry));
   if (!hit) return null;
