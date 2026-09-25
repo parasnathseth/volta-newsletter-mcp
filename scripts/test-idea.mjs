@@ -166,6 +166,9 @@ test('a number that IS written in an evidence quote passes, including 1,200 vers
 
   // A number in the residency line (a deadline) is not checked against evidence: it comes from the live page.
   assert.equal(checkIdea(idea({ residencyLine: 'Applications close October 31 at 5 pm: voltaeffect.com/ai-residency.' }), []).ok, true);
+  const bare = checkIdea(idea({ residencyLine: 'Applications are open year-round. There is no cohort deadline.' }), []);
+  assert.equal(bare.ok, false, 'a call to action that never names the program is refused');
+  assert.ok(bare.problems.some((p) => /does not name/.test(p)));
 });
 
 test('over 120 words is refused and the count is reported', () => {

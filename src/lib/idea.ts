@@ -363,6 +363,14 @@ function checkRepeat(idea: IdeaInput, history: PastIdea[], problems: string[]): 
   }
 }
 
+// A reader who has never heard of the program must be told what it is: the call to action has to
+// name it. (A bare "Applications are open year-round" line, with no mention of the Residency, is refused.)
+function checkResidencyLine(idea: IdeaInput, problems: string[]): void {
+  if (idea.residencyLine && !/residency/i.test(idea.residencyLine)) {
+    problems.push("The call to action does not name Volta's AI Residency. Start with a short line that says what it is, then add the deadline or how to apply, both taken from the live residency page.");
+  }
+}
+
 function checkAgentChecks(idea: IdeaInput, warnings: string[]): void {
   const opened = idea.agentChecks?.opened ?? [];
   if (opened.length === 0) {
@@ -396,6 +404,7 @@ export function checkIdea(input: IdeaInput, history: PastIdea[]): IdeaCheck {
   checkWho(idea, problems);
   checkInjection(idea, problems);
   checkRepeat(idea, history, problems);
+  checkResidencyLine(idea, problems);
   checkAgentChecks(idea, warnings);
 
   return { ok: problems.length === 0, problems, warnings, wordCount };
