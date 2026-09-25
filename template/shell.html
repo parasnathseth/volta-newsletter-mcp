@@ -26,6 +26,12 @@
         .volta-container { width: 100% !important; }
         .volta-px { padding-left: 20px !important; padding-right: 20px !important; }
       }
+      /* Outlook.com's dark mode lightens dark backgrounds it did not choose itself. It tags what it
+         recoloured with data-ogsb, so these rules put Volta's dark tiles, button and call-to-action
+         back to their designed colours. The tiles also carry a solid gradient, which it leaves alone. */
+      [data-ogsb] .vt-tile, [data-ogsb] .vt-tile-td { background-color: #0A0A0C !important; }
+      [data-ogsb] .vt-cta { background-color: #14101F !important; }
+      [data-ogsb] .vt-btn { background-color: #0A0A0A !important; }
     </style>
   </head>
   <body bgcolor="#0A0A0A" style="margin:0;padding:0;background-color:#0A0A0A;">

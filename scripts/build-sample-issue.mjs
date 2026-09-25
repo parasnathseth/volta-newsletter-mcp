@@ -70,10 +70,10 @@ const label = (t) => `<p style="margin:0 0 6px;${F};font-size:11px;font-weight:7
 const divider = '<div style="height:1px;background-color:#232327;margin:28px 0;line-height:1px;font-size:0;">&nbsp;</div>';
 const paragraph = (t) => `<p style="margin:0 0 14px;${F};font-size:15px;line-height:1.6;color:#D9D9DE;">${esc(t)}</p>`;
 
-const eventCard = (e) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0A0A0C" style="background-color:#0A0A0C;border:1px solid #232327;border-radius:10px;margin-bottom:10px;">
+const eventCard = (e) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="vt-tile" bgcolor="#0A0A0C" style="background-color:#0A0A0C;background-image:linear-gradient(#0A0A0C,#0A0A0C);border:1px solid #232327;border-radius:10px;margin-bottom:10px;">
   <tr>
     <td width="4" bgcolor="#6101FF" style="background-color:#6101FF;background-image:linear-gradient(180deg,#6101FF,#05D9E7,#FF6D6D,#FFBB0E);border-radius:10px 0 0 10px;font-size:0;line-height:0;">&nbsp;</td>
-    <td bgcolor="#0A0A0C" style="padding:14px 16px;background-color:#0A0A0C;">
+    <td class="vt-tile-td" bgcolor="#0A0A0C" style="padding:14px 16px;background-color:#0A0A0C;background-image:linear-gradient(#0A0A0C,#0A0A0C);">
       <p style="margin:0 0 3px;${F};font-size:15px;font-weight:600;color:#F5F5F7;">${esc(e.title)}</p>
       <p style="margin:0;${F};font-size:13px;color:#A3A3AD;">${esc(e.startLocal)}${e.location ? ` &middot; ${esc(e.location)}` : ''}</p>
       <p style="margin:6px 0 0;"><a href="${esc(e.url)}" style="${F};font-size:12px;font-weight:600;color:#05D9E7;text-decoration:none;">Sign Up &rarr;</a></p>
@@ -81,10 +81,10 @@ const eventCard = (e) => `<table role="presentation" width="100%" cellpadding="0
   </tr>
 </table>`;
 
-const infoCard = (headline, detail, url) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0A0A0C" style="background-color:#0A0A0C;border:1px solid #232327;border-radius:10px;margin-bottom:10px;">
+const infoCard = (headline, detail, url) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="vt-tile" bgcolor="#0A0A0C" style="background-color:#0A0A0C;background-image:linear-gradient(#0A0A0C,#0A0A0C);border:1px solid #232327;border-radius:10px;margin-bottom:10px;">
   <tr>
     <td width="4" bgcolor="#FFBB0E" style="background-color:#FFBB0E;border-radius:10px 0 0 10px;font-size:0;line-height:0;">&nbsp;</td>
-    <td bgcolor="#0A0A0C" style="padding:14px 16px;background-color:#0A0A0C;">
+    <td class="vt-tile-td" bgcolor="#0A0A0C" style="padding:14px 16px;background-color:#0A0A0C;background-image:linear-gradient(#0A0A0C,#0A0A0C);">
       <p style="margin:0 0 3px;${F};font-size:15px;font-weight:600;color:#F5F5F7;">${esc(headline)}</p>
       <p style="margin:0;${F};font-size:13px;line-height:1.5;color:#A3A3AD;">${esc(detail)}</p>
       <p style="margin:6px 0 0;"><a href="${esc(url)}" style="${F};font-size:12px;font-weight:600;color:#05D9E7;text-decoration:none;">Details &rarr;</a></p>
@@ -93,10 +93,10 @@ const infoCard = (headline, detail, url) => `<table role="presentation" width="1
 </table>`;
 
 const shortDate = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
-const newsCard = (it) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0A0A0C" style="background-color:#0A0A0C;border:1px solid #232327;border-radius:10px;margin-bottom:10px;">
+const newsCard = (it) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="vt-tile" bgcolor="#0A0A0C" style="background-color:#0A0A0C;background-image:linear-gradient(#0A0A0C,#0A0A0C);border:1px solid #232327;border-radius:10px;margin-bottom:10px;">
   <tr>
     <td width="4" bgcolor="#05D9E7" style="background-color:#05D9E7;border-radius:10px 0 0 10px;font-size:0;line-height:0;">&nbsp;</td>
-    <td bgcolor="#0A0A0C" style="padding:14px 16px;background-color:#0A0A0C;">
+    <td class="vt-tile-td" bgcolor="#0A0A0C" style="padding:14px 16px;background-color:#0A0A0C;background-image:linear-gradient(#0A0A0C,#0A0A0C);">
       <p style="margin:0 0 4px;${F};font-size:15px;font-weight:600;line-height:1.4;color:#F5F5F7;">${esc(it.title)}</p>
       <p style="margin:0 0 8px;${F};font-size:14px;line-height:1.5;color:#D9D9DE;">${esc(textOf(it))}</p>
       <p style="margin:0 0 8px;${F};font-size:13px;line-height:1.5;color:#A3A3AD;"><span style="color:#F5F5F7;font-weight:600;">Why it matters for founders:</span> ${esc(data.whyItMatters[it.id])}</p>
@@ -109,9 +109,9 @@ const i = data.idea;
 const small = (t) => `<p style="margin:0 0 3px;${F};font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#A3A3AD;">${t}</p>`;
 const line = (t, color) => `<p style="margin:0 0 14px;${F};font-size:15px;line-height:1.6;color:${color};">${esc(t)}</p>`;
 const evidenceLinks = i.evidence.map((e, n) => `<a href="${esc(e.url)}" style="color:#05D9E7;text-decoration:underline;">${esc(e.note?.split(',')[0] ?? `Source ${n + 1}`)}</a>`).join(' &middot; ');
-const ideaCard = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0A0A0C" style="background-color:#0A0A0C;border:1px solid #232327;border-radius:10px;margin-bottom:14px;">
+const ideaCard = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="vt-tile" bgcolor="#0A0A0C" style="background-color:#0A0A0C;background-image:linear-gradient(#0A0A0C,#0A0A0C);border:1px solid #232327;border-radius:10px;margin-bottom:14px;">
   <tr>
-    <td bgcolor="#0A0A0C" style="padding:22px 24px;background-color:#0A0A0C;">
+    <td class="vt-tile-td" bgcolor="#0A0A0C" style="padding:22px 24px;background-color:#0A0A0C;background-image:linear-gradient(#0A0A0C,#0A0A0C);">
       <p style="margin:0 0 16px;${F};font-size:20px;font-weight:700;line-height:1.3;color:#F5F5F7;">${esc(i.title)}</p>
       ${small('The idea in one line')}
       ${line(i.pitch, '#F5F5F7')}
@@ -128,12 +128,12 @@ const ideaCard = `<table role="presentation" width="100%" cellpadding="0" cellsp
 
 const campaign = `newsletter-${data.newsletterDate}`;
 const residencyHref = `https://voltaeffect.com/ai-residency?utm_source=newsletter&amp;utm_medium=email&amp;utm_campaign=${campaign}`;
-const cta = `<div style="background-color:#14101F;border:1px solid #332A55;border-radius:10px;padding:20px 24px;text-align:center;">
+const cta = `<div class="vt-cta" style="background-color:#14101F;background-image:linear-gradient(#14101F,#14101F);border:1px solid #332A55;border-radius:10px;padding:20px 24px;text-align:center;">
   <p style="margin:0 0 16px;${F};font-size:15px;line-height:1.6;color:#F5F5F7;">${esc(i.residencyLine)}</p>
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr>
     <td bgcolor="#6101FF" style="border-radius:999px;background-color:#6101FF;background-image:linear-gradient(90deg,#FF6D6D,#FFBB0E 30%,#05D9E7 65%,#6101FF);padding:2px;font-size:0;line-height:0;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-radius:999px;"><tr>
-        <td bgcolor="#0A0A0A" style="border-radius:999px;background-color:#0A0A0A;"><a href="${residencyHref}" style="display:inline-block;padding:14px 36px;${F};font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:999px;">Apply Now</a></td>
+        <td class="vt-btn" bgcolor="#0A0A0A" style="border-radius:999px;background-color:#0A0A0A;background-image:linear-gradient(#0A0A0A,#0A0A0A);"><a href="${residencyHref}" style="display:inline-block;padding:14px 36px;${F};font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:999px;">Apply Now</a></td>
       </tr></table>
     </td>
   </tr></table>
