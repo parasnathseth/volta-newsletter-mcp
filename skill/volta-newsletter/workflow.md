@@ -41,7 +41,7 @@ Order: a one or two sentence intro, then the four sections below, then nothing e
 
 **Consent is separate from writing, and always comes from the editor, never assumed.** Whenever you show a story, ask: **"Do you have [Founder]'s OK to share this about them and [Company]?"**
 - Yes: ask how it was given, then record it (`consent: "confirmed"`, `consentVia`).
-- Not yet: keep the story in the draft, say plainly that a Mailchimp draft cannot be created until consent is confirmed, and record `consent: "none"` (or `"requested"` if they say they have already asked). Offer a short consent-request message for the editor to send themselves.
+- Not yet: keep the story in the draft, say plainly that a Mailchimp draft cannot be created until consent is confirmed, and record `consent: "none"` (or `"requested"` if they say they have already asked). Offer a short consent-request message for the editor to send themselves. If the story has to wait for a later issue, note it with `backlog_update` (`appendNote`: "waiting for [founder]'s OK, bring back next issue") so it comes back. It stays fresh for 45 days after its date, so a delay does not make it old news.
 
 Also offer `backlog_update` (`featuredInEditionId`) to record they were featured.
 

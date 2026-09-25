@@ -70,7 +70,7 @@ Honest limit: what Claude says it opened is self-reported. The server cannot pro
 - **Show it:** `npm run demo:vet`, rows 10 and 15. Live: `create_draft` on an edition whose story has no `sourceUrl`.
 
 ### Old, past, repeated and conflicting items
-- **Stops:** events that already happened, news from before the last issue, the same link twice, the same event with two dates.
+- **Stops:** events that already happened, news more than 45 days old, the same link twice, the same event with two dates.
 - **Runs:** `past`, `old_news`, `repeat`, `duplicate` and `conflict` in `src/lib/vet.ts`. A repeat is judged by link, not wording. Two events with the same link but different dates are both held.
 - **Show it:** `npm run demo:vet`: rows 06, 07 and 24 (past), 20 (old), 22 (repeat), 04 (duplicate), 13 and 14 (conflict).
 

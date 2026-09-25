@@ -206,11 +206,21 @@ test('past: an event before the newsletter date is dropped, one on the day is ke
   assert.equal(one(event({ date: NEWSLETTER_DATE })).verdict, 'feature');
 });
 
-test('old_news: a non-event dated before the last issue is dropped, one on that day is kept', () => {
+test('old_news: a non-event more than 45 days before the newsletter date is dropped, one exactly 45 days back is kept', () => {
   const r = one(founder({ date: '2026-06-15' }));
   assert.equal(r.verdict, 'drop');
   assert.equal(r.rule, 'old_news');
-  assert.equal(one(founder({ date: LAST_ISSUE_DATE })).verdict, 'feature');
+  assert.match(r.reason, /45 days/);
+  assert.equal(one(founder({ date: '2026-08-21' })).verdict, 'feature', '2026-10-05 minus 45 days');
+  assert.equal(one(founder({ date: '2026-08-20' })).rule, 'old_news', 'one day older');
+});
+
+test('old_news: a story dated before the last issue but within 45 days is still fresh (for example one held back for consent)', () => {
+  const r = one(founder({ date: '2026-08-30' })); // before the last issue (2026-09-07), never featured
+  assert.equal(r.verdict, 'feature');
+  // If it DID run in the last issue, the repeat rule catches it instead.
+  const again = one(founder({ date: '2026-08-30' }), { lastIssueItems: [{ title: 'Acme AI launched', link: 'https://example.com/acme' }] });
+  assert.equal(again.rule, 'repeat');
 });
 
 test('old_news: an evergreen program with no date is kept, and events are judged by the past rule', () => {

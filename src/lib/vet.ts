@@ -18,7 +18,7 @@
 //   1. do_not_feature   drop   the item is about someone on the do-not-feature list
 //                       hold   a founder or ask item whose TITLE names someone on the list
 //   2. past             drop   an event whose date is before the newsletter date
-//   3. old_news         drop   a non-event dated before the last issue
+//   3. old_news         drop   a non-event dated more than OLD_NEWS_DAYS (45) before the newsletter date
 //   4. repeat           drop   the same link AND the same company or title was in the last issue (not for events: an upcoming event may be listed again)
 //   5. duplicate        drop   same link and same subject as an EARLIER item
 //   6. no_link/hearsay  drop   no usable http(s) link. Exception: a founder story marked
@@ -347,11 +347,23 @@ const rulePast: Rule = (p, ctx) => {
   return drop('past', `This event was on ${p.date}, before the newsletter date (${ctx.newsletterDate}), so it has already happened.`);
 };
 
+// How old (in days, before the newsletter date) a non-event item may be. Age is judged by the
+// calendar, not by the last issue: a story that never ran, for example one held back for a late
+// yes from the founder, is still new to readers. Stories that DID run are caught by `repeat`.
+export const OLD_NEWS_DAYS = 45;
+
+/** The date `days` days before an ISO date (YYYY-MM-DD). */
+function daysBefore(iso: string, days: number): string {
+  return new Date(Date.parse(`${iso}T00:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10);
+}
+
 // AI news has its own, stricter date rule (news_window), so it is left out here.
 const ruleOldNews: Rule = (p, ctx) => {
   const kind = p.item.kind;
-  if (kind === 'event' || kind === 'ai_news' || !p.date || p.date >= ctx.lastIssueDate) return null;
-  return drop('old_news', `Dated ${p.date}, before the last issue (${ctx.lastIssueDate}), so it is old news.`);
+  if (kind === 'event' || kind === 'ai_news' || !p.date) return null;
+  const oldest = daysBefore(ctx.newsletterDate, OLD_NEWS_DAYS);
+  if (p.date >= oldest) return null;
+  return drop('old_news', `Dated ${p.date}, more than ${OLD_NEWS_DAYS} days before the newsletter date (${ctx.newsletterDate}), so it is old news.`);
 };
 
 // Each text mentions the other (whole words, ignoring case and punctuation).
