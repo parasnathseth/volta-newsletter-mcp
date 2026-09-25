@@ -22,7 +22,7 @@ Paragraph:
 
 Section label:
 ```html
-<p style="margin:0 0 6px;F;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#05D9E7;">Founder Spotlight</p>
+<p style="margin:0 0 6px;F;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#05D9E7;">Volta Community Wins</p>
 ```
 
 Divider between sections:
@@ -68,7 +68,6 @@ Founder spotlight card (one per featured story; change only the text and the lin
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0A0A0C" style="background-color:#0A0A0C;border:1px solid #232327;border-radius:10px;margin-bottom:14px;">
   <tr>
     <td bgcolor="#0A0A0C" style="padding:22px 24px;background-color:#0A0A0C;">
-      <p style="margin:0 0 6px;F;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#05D9E7;">Founder Spotlight</p>
       <p style="margin:0 0 4px;F;font-size:20px;font-weight:700;line-height:1.3;color:#F5F5F7;">FOUNDER NAME, COMPANY</p>
       <p style="margin:0 0 14px;F;font-size:13px;color:#A3A3AD;">One line on what the company does</p>
       <p style="margin:0 0 12px;F;font-size:15px;line-height:1.6;color:#D9D9DE;">Story paragraph.</p>
@@ -99,14 +98,14 @@ Section heading (larger title inside a section):
 
 ### Blocks for the newsletter sections
 
-The issue has four sections, in this order: Volta wins, Coming up, AI news since the last edition, The idea (with the residency call to action). Start each section with the section label block. Which block goes where:
+The issue has four sections, in this order: Volta Community Wins, Coming up, The Latest AI News, A Startup Idea to Think About (with the residency call to action). Start each section with the section label block. Which block goes where:
 
 | Section | Blocks |
 |---|---|
-| Volta wins | Section label "Volta wins", then one founder spotlight card per story |
+| Volta Community Wins | Section label "Volta Community Wins", then one founder spotlight card per story |
 | Coming up | Section label "Coming up", then event cards (events) and info cards (program deadlines) |
-| AI news since the last edition | Section label "AI news since the last edition", then 1 to 5 AI news cards |
-| The idea | Section label "The idea", the idea card, then the residency call to action with campaign tag |
+| The Latest AI News | Section label "The Latest AI News", then 1 to 5 AI news cards |
+| A Startup Idea to Think About | Section label "A Startup Idea to Think About", the idea card, then the residency call to action with campaign tag |
 
 Put a divider between sections. There is no asks-and-offers section.
 
@@ -130,7 +129,6 @@ Idea card (one per issue, fixed four-line layout: the idea in one line, who need
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0A0A0C" style="background-color:#0A0A0C;border:1px solid #232327;border-radius:10px;margin-bottom:14px;">
   <tr>
     <td bgcolor="#0A0A0C" style="padding:22px 24px;background-color:#0A0A0C;">
-      <p style="margin:0 0 6px;F;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#05D9E7;">An idea to think about</p>
       <p style="margin:0 0 16px;F;font-size:20px;font-weight:700;line-height:1.3;color:#F5F5F7;">IDEA TITLE</p>
       <p style="margin:0 0 3px;F;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#A3A3AD;">The idea in one line</p>
       <p style="margin:0 0 14px;F;font-size:15px;line-height:1.6;color:#F5F5F7;">PITCH</p>

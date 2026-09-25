@@ -30,10 +30,10 @@ Every later change: call `save_edition` with the `editionId` and only the fields
 
 Order: a one or two sentence intro, then the four sections below, then nothing else. Leave out a section that has nothing vetted in it rather than filling space. Every item links to its source. There is no asks-and-offers section.
 
-1. **Volta wins.** Founder stories, only with consent (see the next part). A founder story waiting only on the editor's consent may stay in the draft with consent `none`, so the editor sees the whole issue; `create_draft` refuses until they confirm. Anything held for another reason (embargo, conflicting sources, a failed check) stays out of the body and out of `featured`.
+1. **Volta Community Wins.** Founder stories, only with consent (see the next part). A founder story waiting only on the editor's consent may stay in the draft with consent `none`, so the editor sees the whole issue; `create_draft` refuses until they confirm. Anything held for another reason (embargo, conflicting sources, a failed check) stays out of the body and out of `featured`.
 2. **Coming up.** Events from `get_upcoming_events` and program deadlines (Residency, Mentor Match) from their pages, each with a link.
-3. **AI news since the last edition.** 1 to 5 items that passed vetting (one is enough), each with one or two plain sentences, why it matters for founders, and the link.
-4. **The idea, then the AI Residency call to action.** The four-line idea card, then the call to action with the per-edition campaign tag. If no idea passes, use the plain call to action from `brand-and-html.md` instead.
+3. **The Latest AI News.** 1 to 5 items that passed vetting (one is enough), each with one or two plain sentences, why it matters for founders, and the link.
+4. **A Startup Idea to Think About, then the AI Residency call to action.** The four-line idea card, then the call to action with the per-edition campaign tag. If no idea passes, use the plain call to action from `brand-and-html.md` instead.
 
 ## Featuring a founder: research, write, then settle consent
 

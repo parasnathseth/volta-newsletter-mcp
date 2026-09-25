@@ -112,7 +112,6 @@ const evidenceLinks = i.evidence.map((e, n) => `<a href="${esc(e.url)}" style="c
 const ideaCard = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0A0A0C" style="background-color:#0A0A0C;border:1px solid #232327;border-radius:10px;margin-bottom:14px;">
   <tr>
     <td bgcolor="#0A0A0C" style="padding:22px 24px;background-color:#0A0A0C;">
-      <p style="margin:0 0 6px;${F};font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#05D9E7;">An idea to think about</p>
       <p style="margin:0 0 16px;${F};font-size:20px;font-weight:700;line-height:1.3;color:#F5F5F7;">${esc(i.title)}</p>
       ${small('The idea in one line')}
       ${line(i.pitch, '#F5F5F7')}
@@ -151,10 +150,10 @@ const body = [
   label('Coming up'),
   ...comingUp,
   divider,
-  label('AI news since the last edition'),
+  label('The Latest AI News'),
   ...news,
   divider,
-  label('The idea'),
+  label('A Startup Idea to Think About'),
   ideaCard,
   cta,
 ].join('\n');
@@ -191,7 +190,7 @@ Totals: ${vet.counts.feature} featured, ${vet.counts.hold} held, ${vet.counts.dr
 "${i.title}" passed \`idea_check\` (${idea.wordCount} words, warnings: ${idea.warnings.length ? idea.warnings.join(' ') : 'none'}). It is labelled an idea, not a fact. The evidence is two Volta pages, and the "already exists" check names two real products that need company system data. ${i.agentChecks.found}
 
 ## What is deliberately not in this issue
-- **Founder stories.** No real founder has agreed to be featured, so the "Volta wins" section is left out rather than filled with anything unconfirmed. The consent gate would hold them.
+- **Founder stories.** No real founder has agreed to be featured, so the "Volta Community Wins" section is left out rather than filled with anything unconfirmed. The consent gate would hold them.
 - **Team highlights** are backlog reference material for Bader and never enter an issue by themselves.
 - **OpenAI's latest model announcement.** Search results mentioned it, but the OpenAI page could not be opened (HTTP 403), so it could not be verified and was left out.
 

@@ -114,7 +114,7 @@ try {
   const card = (e) => eventCard.replace('EVENT TITLE', esc(e.title)).replace('STARTLOCAL', esc(e.startLocal)).replace('LOCATION', esc(e.location || 'Volta')).replace('EVENT_URL', e.url || 'https://voltaeffect.com/events');
   const body = [
     paragraph.replace('Text here.', 'Here is what is on at Volta.'),
-    label.replace('Founder Spotlight', 'Upcoming at Volta'),
+    label.replace('Volta Community Wins', 'Upcoming at Volta'),
     ...someEvents.map(card),
     divider,
     cta,

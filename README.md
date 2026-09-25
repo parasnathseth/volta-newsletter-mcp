@@ -17,7 +17,7 @@ A scheduled Claude task, or Bader saying "start the newsletter", begins the run.
 5. **Say yes.** Claude creates the Mailchimp draft.
 6. **Open Mailchimp, read it, edit if you like, and send it yourself.**
 
-Each issue has four sections: Volta wins, Coming up, AI news since the last edition (1 to 5 short items), and one startup idea with the AI Residency call to action. Every item links to its source.
+Each issue has four sections: Volta Community Wins, Coming up, The Latest AI News (1 to 5 short items), and A Startup Idea to Think About with the AI Residency call to action. Every item links to its source.
 
 ## The safety promises
 
