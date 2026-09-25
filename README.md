@@ -43,12 +43,12 @@ follows the Skill's instructions          holds the rules and data     Google si
 
 ## Get started on your machine
 
-This assumes the server is already set up (if not, see [Appendix A](#appendix-a-set-up-the-server-one-time)) and you have its address, called `<worker-url>` below. You need a Claude account whose plan allows custom connectors.
+This assumes the server is already set up (if not, see [Appendix A](#appendix-a-set-up-the-server-one-time)). It is running at `https://volta-newsletter-mcp.test-mode.workers.dev`. You need a Claude account whose plan allows custom connectors.
 
 **Testing?** If the server's Google sign-in is in test mode, ask the owner to add your email to the Google OAuth test users before you sign in.
 
 ### 1. Add the connector
-In Claude, go to **Customize > Connectors**, add a custom connector with `https://<worker-url>/mcp`, and sign in with your Google account.
+In Claude, go to **Customize > Connectors**, add a custom connector with `https://volta-newsletter-mcp.test-mode.workers.dev/mcp`, and sign in with your Google account.
 
 ### 2. Add the Skill
 Build the file with `npm run skill:zip` (or use the copy you were given: `volta-newsletter-skill.zip`). In Claude, go to the **Skills** settings and upload it.
@@ -116,8 +116,8 @@ Each address you add widens who can sign in, so add only what you use. `handoff:
 **ChatGPT.**
 1. You need a plan that allows custom connectors (Pro, Team, Enterprise or Edu). Turn on **Settings > Connectors > Advanced > Developer mode**.
 2. Add the callback address above (it is commonly reported as shown; check what ChatGPT displays).
-3. In Connectors, **Create** a connector: URL `https://<worker-url>/mcp`, authentication **OAuth**. Sign in with your Google account.
+3. In Connectors, **Create** a connector: URL `https://volta-newsletter-mcp.test-mode.workers.dev/mcp`, authentication **OAuth**. Sign in with your Google account.
 4. ChatGPT has no Skills. Run `npm run instructions`, then paste `dist/volta-newsletter-instructions.md` into a Project's instructions (or upload it as a project file) and use that Project. If it is too long, paste `skill/volta-newsletter/SKILL.md` and `workflow.md` first.
 5. Choose the connector in each new chat (**+ > Developer mode**).
 
-**Claude Code (terminal app).** It signs in through a fixed local address: add `http://localhost:8080/callback` to `ALLOWED_REDIRECT_URIS`, run `claude mcp add --transport http --callback-port 8080 volta-newsletter https://<worker-url>/mcp`, then sign in with `/mcp`.
+**Claude Code (terminal app).** It signs in through a fixed local address: add `http://localhost:8080/callback` to `ALLOWED_REDIRECT_URIS`, run `claude mcp add --transport http --callback-port 8080 volta-newsletter https://volta-newsletter-mcp.test-mode.workers.dev/mcp`, then sign in with `/mcp`.
