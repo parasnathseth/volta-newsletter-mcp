@@ -31,7 +31,7 @@ const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').
 // loadEvents wants a KV store for its cache; an empty in-memory one is enough for a one-off run.
 const emptyKv = { get: async () => null, put: async () => {}, delete: async () => {} };
 const { events } = await loadEvents({ OAUTH_KV: emptyKv }, { refresh: true });
-const windowEnd = new Date(Date.parse(`${data.newsletterDate}T12:00:00Z`) + 28 * 86_400_000).toISOString().slice(0, 10);
+const windowEnd = new Date(Date.parse(`${data.newsletterDate}T12:00:00Z`) + 14 * 86_400_000).toISOString().slice(0, 10);
 const upcoming = selectEvents(events, { from: data.newsletterDate, to: windowEnd, now: Date.parse(`${data.newsletterDate}T12:00:00Z`), includeDescriptions: false, limit: 50 }).events;
 const seenTitles = new Set();
 const chosenEvents = upcoming.filter((e) => e.url && !seenTitles.has(e.title) && seenTitles.add(e.title)).slice(0, 6);
@@ -198,7 +198,7 @@ Totals: ${vet.counts.feature} featured, ${vet.counts.hold} held, ${vet.counts.dr
 ## Assumptions
 - The last issue date is assumed to be ${data.lastIssueDate}; no real earlier issue was available.
 - Volta has not supplied a do-not-feature list, so the real run used an empty one. The demo with the made-up test pack uses a real list.
-- Events come from Volta's live calendar feed, limited to the four weeks after the issue date, one card per recurring title.
+- Events come from Volta's live calendar feed, limited to the two weeks after the issue date (the default window), one card per recurring title.
 `;
 writeFileSync(out('review-notes.md'), notes);
 console.log(`Built sample-issue/newsletter.html: ${vet.counts.feature} featured, ${vet.counts.hold} held, ${vet.counts.drop} dropped. Events used: ${featured(eventItems).length}.`);

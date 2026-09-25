@@ -16,7 +16,7 @@ export function registerEventTools(server: McpServer, env: Env, userEmail: () =>
         "Fetch events from Volta's public calendar feed for a date window. Returns exact titles, times (UTC plus a ready-made Halifax-local label), locations and sign-up links, all copied verbatim from the feed. Use these values as-is in the newsletter and never invent or alter event facts. Works for past windows too (set from/to in the past). When a later event with the same title exists, `nextOccurrence` is included so past events can link to the next one. Defaults to the next 30 days.",
       inputSchema: {
         from: z.string().optional().describe(`Window start (inclusive). ${BOUND_HELP} Defaults to today.`),
-        to: z.string().optional().describe(`Window end (inclusive). ${BOUND_HELP} Defaults to 30 days after today.`),
+        to: z.string().optional().describe(`Window end (inclusive). ${BOUND_HELP} Defaults to 14 days (two weeks) after today; set it further out when the editor asks for a longer look ahead.`),
         includeDescriptions: z.boolean().optional().describe('Include the (trimmed) event description. Default true.'),
         limit: z.number().int().min(1).max(200).optional().describe('Maximum events to return. Default 100.'),
         refresh: z.boolean().optional().describe('Bypass the 1-hour cache and re-download the feed. Default false.'),

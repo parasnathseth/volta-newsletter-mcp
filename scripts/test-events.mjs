@@ -103,7 +103,7 @@ test('REGRESSION: the default window starts on the Halifax day, not the UTC day 
   const now = Date.parse('2026-09-21T00:30:00Z');
   const w = defaultWindow(now);
   assert.equal(w.from, '2026-09-20');
-  assert.equal(w.to, '2026-10-20');
+  assert.equal(w.to, '2026-10-04'); // two weeks after Sep 20
   const events = parseIcs(wrap(vevent(['UID:tonight', 'SUMMARY:Tonight', 'DTSTART:20260920T223000Z']))); // 7:30 PM Halifax on Sep 20
   assert.equal(selectEvents(events, { ...w, now, includeDescriptions: false, limit: 10 }).events.length, 1);
   // In winter (UTC-4) the same shift applies.

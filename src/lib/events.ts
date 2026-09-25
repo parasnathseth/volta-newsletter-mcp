@@ -76,9 +76,12 @@ export function halifaxDate(iso: string): string {
   return `${p.year}-${p.month}-${p.day}`;
 }
 
-/** Default event window: today (Halifax calendar day) through 30 days later. Using the UTC date here would skip this evening's events after 8-9 pm Halifax time. */
+/** How many days ahead the newsletter looks by default. Two weeks keeps an issue short; the editor can ask for a longer window. */
+export const DEFAULT_WINDOW_DAYS = 14;
+
+/** Default event window: today (Halifax calendar day) through DEFAULT_WINDOW_DAYS later. Using the UTC date here would skip this evening's events after 8-9 pm Halifax time. */
 export function defaultWindow(now: number): { from: string; to: string } {
-  return { from: halifaxDate(new Date(now).toISOString()), to: halifaxDate(new Date(now + 30 * 86_400_000).toISOString()) };
+  return { from: halifaxDate(new Date(now).toISOString()), to: halifaxDate(new Date(now + DEFAULT_WINDOW_DAYS * 86_400_000).toISOString()) };
 }
 
 export function formatLocal(iso: string, allDay: boolean): string {

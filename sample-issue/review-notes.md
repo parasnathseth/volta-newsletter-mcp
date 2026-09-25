@@ -10,16 +10,13 @@ Server verdicts (the same rules `vet_updates` runs) combined with Claude's own d
 | Turning Cybersecurity, Privacy and AI Governance into a Business Advantage | FEATURE | ok | Passed every server check. |
 | Coffee, Community and Co - Work | FEATURE | ok | Passed every server check. |
 | DEFCON Halifax October Meet-Up | FEATURE | ok | Passed every server check. |
-| AI Showcase and Mixer | FEATURE | ok | Passed every server check. |
-| Vibe Coding Meetup | FEATURE | ok | Passed every server check. |
-| The Rules of the Game: Competition Law and Procurement 101 | FEATURE | ok | Passed every server check. |
 | Volta opens the AI Productivity Lab | FEATURE | ok | Passed every server check. |
 | Claude Opus 5.5 | FEATURE | ok | Passed every server check. |
 | Detecting and countering misuse of AI: September 2026 | FEATURE | ok | Passed every server check. |
 | Claude discovers a novel enzyme system | FEATURE | ok | Passed every server check. |
 | How founders are rethinking capital in the AI era | FEATURE | ok | Passed every server check. |
 
-Totals: 11 featured, 0 held, 0 dropped.
+Totals: 8 featured, 0 held, 0 dropped.
 
 ## The idea
 "The one-page map" passed `idea_check` (94 words, warnings: none). It is labelled an idea, not a fact. The evidence is two Volta pages, and the "already exists" check names two real products that need company system data. Both Volta quotes and both competitor descriptions checked against the pages. Web search also found process-mining products (Celonis, UiPath, KYP.ai) aimed at larger companies; none found that runs an owner interview for very small businesses. A search is not proof that none exists.
@@ -32,4 +29,4 @@ Totals: 11 featured, 0 held, 0 dropped.
 ## Assumptions
 - The last issue date is assumed to be 2026-09-07; no real earlier issue was available.
 - Volta has not supplied a do-not-feature list, so the real run used an empty one. The demo with the made-up test pack uses a real list.
-- Events come from Volta's live calendar feed, limited to the four weeks after the issue date, one card per recurring title.
+- Events come from Volta's live calendar feed, limited to the two weeks after the issue date (the default window), one card per recurring title.
