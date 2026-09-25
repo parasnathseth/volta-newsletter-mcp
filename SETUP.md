@@ -2,7 +2,7 @@
 
 For the developer setting this up with Bader. Bader must be there to sign in. Steps marked **[Volta account]** need an account that Volta owns (Cloudflare, Google Workspace, Mailchimp). If Volta does not have those yet, stop after Part 1 and finish `HANDOFF.md` first; do not set up on personal accounts and call it done.
 
-The server, Google sign-in, Mailchimp and connecting an AI app (Claude, ChatGPT or Cursor) are set up by the steps in `README.md`. This file adds the first-day checklist for Bader's device and the scheduled task.
+The server, Google sign-in, Mailchimp and connecting an AI app (Claude or ChatGPT) are set up by the steps in `README.md`. This file adds the first-day checklist for Bader's device and the scheduled task.
 
 `<worker-url>` below means the address of the deployed Worker, for example `https://volta-newsletter-mcp.<account>.workers.dev`.
 
