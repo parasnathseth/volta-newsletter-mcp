@@ -57,6 +57,8 @@ Always create a brand-new edition for this run. Never save to, change, create a 
 
 Do the full run: check the do-not-feature list, pull events, read the Volta blog and the AI Residency page, find AI news since the last issue (open the newsroom pages directly, and one good item is enough), read the backlog, vet everything, do the double-check, choose one startup idea and run it through the idea check, then save one full draft edition and render the preview.
 
+Also research the founders in the backlog: for every entry that is due (or has no revisit date), search for news about them from the last 45 days, using their own news page and a quick news search. Add a dated note to each with `backlog_update` (write "nothing new" if there is none). Pick the strongest fresh item as the Volta Community Wins story, with consent left as none, and mention in your final message who you checked and what you found.
+
 Do not: mark consent, create a Mailchimp draft, record an idea, change the do-not-feature list, publish anything, or delete anything. Leave those for the editor.
 
 Finish with a short message for the editor in plain language: what is in the draft and what was left out (with reasons), the few yes/no questions I need answered (consent for any founder story, whether to use the idea, and if there is no founder story, whether they have someone to feature), and the preview. If a section could not be built, say which one and why.
