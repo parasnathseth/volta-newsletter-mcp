@@ -49,17 +49,17 @@ Create it in Claude on Bader's device, under his account (it cannot be created f
 Suggested name: `Volta newsletter run`. Suggested prompt (paste as written):
 
 ```text
-Use the Volta Newsletter skill and its connector to prepare this week's newsletter, following the skill's weekly flow and its rules for scheduled runs. Nobody is here to answer questions, so do not stop to ask anything.
+Use the Volta Newsletter skill and its connector to prepare this week's newsletter, following the skill's weekly flow and its rules for scheduled runs. This is a scheduled task. Nobody is here to answer questions, so do not stop to ask anything. You can let the user know about hiccups along the way at the end when you're done.
 
-Today's date is the newsletter date. Use the next 14 days for events unless told otherwise.
+Always create a brand-new edition for this run. Never save to, change, create a draft from or delete any existing edition
 
-Always create a brand-new edition for this run. Never save to, change, create a draft from or delete any existing edition.
+Today's date is the newsletter date. Use the next 14 days for events unless the saved edition says otherwise.
 
-Do the full run: check the do-not-feature list, pull events, read the Volta blog and the AI Residency page, find AI news since the last issue (open the newsroom pages directly, and one good item is enough), read the backlog, vet everything, do the double-check, choose one startup idea and run it through the idea check, then save one full draft edition and render the preview.
+Do the full run: check the do-not-feature list, pull events, read the Volta blog and the AI Residency page, find AI news since the last issue (open the newsroom pages directly, and 1-3 good items are enough), read the backlog including team entries, vet everything, do the double-check, choose one startup idea and run it through the idea check, then save one full draft edition and render the preview.
 
 Do not: mark consent, create a Mailchimp draft, record an idea, change the do-not-feature list, publish anything, or delete anything. Leave those for the editor.
 
-Finish with a short message for the editor in plain language: what is in the draft and what was left out (with reasons), the few yes/no questions I need answered (consent for any founder story, whether to use the idea, and if there is no founder story, whether they have someone to feature), and the preview. If a section could not be built, say which one and why.
+Finish with a short message for the editor in plain language: what is in the draft and what was left out (with reasons), the few yes/no questions I need answered (consent for any founder story, whether to use the idea, any team highlights worth using), and the preview. If a section could not be built, say which one and why.
 ```
 
 **Frequency.** The plan is a weekly run (for example Monday morning). The flow works from the last issue's date, so any rhythm works; Bader has said he sends monthly, so choose with him. Each scheduled run starts a new edition and never touches an existing one, so it cannot overwrite Bader's work.

@@ -32,7 +32,7 @@ Each issue has four sections: **Volta Community Wins**, **Coming up**, **The Lat
 - **Hidden instructions in what Claude reads can't change what is featured.** They are removed and reported.
 - **Two layers of checking.** The server applies fixed rules; Claude double-checks what a server can't (it opens the links). The stricter answer wins, and Claude can only tighten a decision.
 
-These are checks, not guarantees. Consent is still the editor's word, and the editor reads every draft. See `docs/HOW-IT-WORKS.md` for each check and its limits.
+These are checks, not guarantees. Consent is still the editor's word, and the editor reads every draft.
 
 ## How it fits together
 
@@ -62,17 +62,17 @@ Check it worked: ask Claude "Who am I on the Volta Newsletter connector?", then 
 Create a scheduled task in Claude (for example every Monday morning) and paste this prompt:
 
 ```text
-Use the Volta Newsletter skill and its connector to prepare this week's newsletter, following the skill's weekly flow and its rules for scheduled runs. Nobody is here to answer questions, so do not stop to ask anything.
+Use the Volta Newsletter skill and its connector to prepare this week's newsletter, following the skill's weekly flow and its rules for scheduled runs. This is a scheduled task. Nobody is here to answer questions, so do not stop to ask anything. You can let the user know about hiccups along the way at the end when you're done.
 
-Today's date is the newsletter date. Use the next 14 days for events unless told otherwise.
+Always create a brand-new edition for this run. Never save to, change, create a draft from or delete any existing edition
 
-Always create a brand-new edition for this run. Never save to, change, create a draft from or delete any existing edition.
+Today's date is the newsletter date. Use the next 14 days for events unless the saved edition says otherwise.
 
-Do the full run: check the do-not-feature list, pull events, read the Volta blog and the AI Residency page, find AI news since the last issue (open the newsroom pages directly, and one good item is enough), read the backlog, vet everything, do the double-check, choose one startup idea and run it through the idea check, then save one full draft edition and render the preview.
+Do the full run: check the do-not-feature list, pull events, read the Volta blog and the AI Residency page, find AI news since the last issue (open the newsroom pages directly, and 1-3 good items are enough), read the backlog including team entries, vet everything, do the double-check, choose one startup idea and run it through the idea check, then save one full draft edition and render the preview.
 
 Do not: mark consent, create a Mailchimp draft, record an idea, change the do-not-feature list, publish anything, or delete anything. Leave those for the editor.
 
-Finish with a short message for the editor in plain language: what is in the draft and what was left out (with reasons), the few yes/no questions I need answered (consent for any founder story, whether to use the idea, and if there is no founder story, whether they have someone to feature), and the preview. If a section could not be built, say which one and why.
+Finish with a short message for the editor in plain language: what is in the draft and what was left out (with reasons), the few yes/no questions I need answered (consent for any founder story, whether to use the idea, any team highlights worth using), and the preview. If a section could not be built, say which one and why.
 ```
 
 ### 5. Click "Run now"
